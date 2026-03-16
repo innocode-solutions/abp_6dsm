@@ -1,151 +1,150 @@
-# 🤖 Chatbot PROCON Jacareí – Orientação ao Consumidor via WhatsApp
+# 🤖 ProconBot Jacareí
 
-## 📌 Sobre o Projeto
+> Chatbot inteligente para orientação sobre direitos do consumidor via WhatsApp.
 
-Este projeto tem como objetivo desenvolver um **chatbot para atendimento orientativo do PROCON de Jacareí**, permitindo que consumidores tirem dúvidas por meio do **WhatsApp**.
+---
 
-O sistema utiliza um **motor de fluxos decisórios baseado em tabela fornecida pelo PROCON**, conduzindo o usuário por perguntas sequenciais até a geração de uma orientação final.
+## 📋 Visão do Produto
 
-Um **Modelo de Linguagem (LLM)** poderá ser utilizado exclusivamente para gerar o texto explicativo final, respeitando estritamente os limites e decisões previamente definidas pelo fluxo oficial.
+### Descrição
 
-⚠️ O chatbot possui caráter **orientativo**, não substituindo atendimento jurídico ou administrativo formal.
+Um chatbot inteligente acessível via **WhatsApp** que fornece orientação inicial sobre direitos do consumidor, utilizando:
 
---- 
+- 🔀 Fluxos decisórios baseados nas orientações do PROCON
+- 📚 Recuperação de conhecimento (**RAG**) baseada nas FAQs e no Código de Defesa do Consumidor
+- 🧠 Técnicas de **PLN** para interpretação de mensagens
+- ✍️ Geração controlada de respostas com **LLM**
+- ☁️ Infraestrutura em nuvem para execução e persistência
 
-## 🧠 Visão Geral da Arquitetura
-```
-Usuário (WhatsApp)
-↓
-Webhook (API Backend)
-↓
-Gerenciador de Sessão
-↓
-Motor de Fluxos Decisórios
-↓
-Resumo Estruturado do Caso
-↓
-LLM (Geração Textual Controlada)
-↓
-Resposta ao Usuário
-↓
-Persistência e Logs
-```
+### 🎯 Objetivo
 
-### 🔹 Princípios Arquiteturais
+Auxiliar cidadãos a entender seus direitos e os próximos passos para resolver problemas de consumo.
 
-- Separação entre:
-  - Integração com WhatsApp
-  - Motor de fluxo decisório
-  - Geração textual com LLM
-- Estrutura modular
-- Conformidade com LGPD
-- Controle de alucinações do modelo de linguagem
+### 👥 Usuários
 
-## 🛠️ Tecnologias Utilizadas
+- Consumidores da cidade
+- Estudantes / testadores do sistema
 
-### Backend
-- Node.js ou Python (definir conforme implementação)
-- Framework Web (Express / FastAPI)
-- REST API
+---
 
-### Integração
-- WhatsApp Business Platform (Cloud API)  
-  *(ou simulador para ambiente acadêmico)*
+## 🧑‍💼 Personas
 
-### Persistência
-- Banco de dados relacional ou NoSQL
-- Registro de logs de interação
+### Consumidor
 
-### Inteligência Artificial
-- Modelo de Linguagem (LLM) para geração textual explicativa
-- Prompt controlado e restritivo
+Pessoa que teve problema com empresa e precisa saber:
 
-# 📋 Product Backlog
+- Se tem direito
+- Que documentos levar
+- Como reclamar
 
-O backlog foi estruturado com base nos requisitos funcionais e não funcionais do projeto.
+### Administrador / Auditor
 
-## 🟦 ÉPICO 1 – Integração com WhatsApp
+Precisa:
 
-- US01 – Implementar Webhook para recebimento de mensagens
-- US02 – Implementar envio de mensagens via API do WhatsApp
-- US03 – Criar simulador de WhatsApp para testes locais
+- Consultar histórico
+- Analisar conversas
+- Validar orientações do chatbot
 
-## 🟦 ÉPICO 2 – Motor de Fluxos Decisórios
+---
 
-- US04 – Estruturar modelo configurável de fluxo decisório (JSON/YAML)
-- US05 – Implementar navegação sequencial entre perguntas
-- US06 – Implementar controle de estado de sessão do usuário
-- US07 – Gerar resumo estruturado ao final do fluxo
+## ✅ Definition of Done (DoD)
 
-## 🟦 ÉPICO 3 – Geração de Resposta com LLM
+Uma história será considerada concluída quando:
 
-- US08 – Criar prompt restritivo para geração textual
-- US09 – Implementar geração de texto explicativo com base no resumo estruturado
-- US10 – Garantir transparência sobre uso de LLM na resposta final
-- US11 – Implementar validação para evitar extrapolação de informações
+#### 💻 Código
+- [ ] Implementado em **TypeScript**
+- [ ] Versionado no **GitHub**
+- [ ] Revisado por pelo menos **1 membro** da equipe
 
-## 🟦 ÉPICO 4 – Persistência e Monitoramento
+#### 🧪 Testes
+- [ ] Fluxo principal testado manualmente
+- [ ] Erros tratados adequadamente
 
-- US12 – Registrar todas as interações realizadas
-- US13 – Armazenar fluxos percorridos
-- US14 – Implementar relatório de fluxos mais utilizados
-- US15 – Permitir exportação de dados para análise
+#### ☁️ Infraestrutura
+- [ ] Funcional em ambiente cloud
+- [ ] Container **Docker** construído
+- [ ] Variáveis de ambiente configuradas
 
-## 🟦 ÉPICO 5 – LGPD e Conformidade
+#### 🔗 Integração
+- [ ] Integração com **WhatsApp** funcionando
+- [ ] Banco persistindo dados
 
-- US16 – Exibir aviso de caráter orientativo no início da conversa
-- US17 – Implementar anonimização de dados (hash de telefone)
-- US18 – Implementar exclusão de registros mediante solicitação
-- US19 – Garantir armazenamento mínimo de dados pessoais
+#### 🤖 IA
+- [ ] Uso de LLM restrito à geração textual
+- [ ] Resposta baseada em dados recuperados (**RAG**)
 
-## 🟦 ÉPICO 6 – Usabilidade e Qualidade
+#### 📄 Documentação
+- [ ] README atualizado
+- [ ] Descrição da feature registrada
 
-- US20 – Garantir linguagem clara e acessível
-- US21 – Garantir tempo de resposta adequado (até 3 segundos)
-- US22 – Implementar testes de fluxo completo
-- US23 – Implementar tratamento de erros e fallback seguro
+---
 
-# 📌 Requisitos Funcionais
+## 📊 Escala de Pontuação
 
-**RF01:** Permitir interação do usuário via WhatsApp utilizando chatbot como interface principal.  
-**RF02:** Apresentar opções de resposta com base em tabela de decisões do PROCON.  
-**RF03:** Permitir navegação sequencial por fluxos decisórios.  
-**RF04:** Gerar resposta orientadora ao final do fluxo.  
-**RF05:** Permitir complemento textual por LLM, respeitando limites definidos pelo PROCON.  
-**RF06:** Registrar interações para análise posterior.
+### Story Points (Fibonacci)
 
-# 📌 Requisitos Não Funcionais
+| Pontos | Complexidade   |
+|--------|----------------|
+| 1      | Trivial        |
+| 2      | Simples        |
+| 3      | Moderado       |
+| 5      | Complexo       |
+| 8      | Muito complexo |
 
-**RNF01:** Linguagem clara, objetiva e acessível.  
-**RNF02:** Alta disponibilidade e tempo de resposta adequado.  
-**RNF03:** Conformidade com LGPD.  
-**RNF04:** Transparência sobre caráter orientativo das respostas.  
-**RNF05:** Identificação clara de conteúdo gerado com apoio de LLM.
+---
 
-# 🔐 Restrições do Projeto
+## 🎯 Critério de Priorização
 
-**RP01:** Integração preferencial com WhatsApp Business Cloud API (ou simulador acadêmico).  
-**RP02:** Backend em Node.js ou Python.  
-**RP03:** Estrutura modular separando fluxo, chatbot e LLM.  
-**RP04:** Escopo compatível com o tempo de desenvolvimento do semestre.
+Priorização baseada em:
 
-# 🚀 Objetivo Final
+1. 💡 Valor para o usuário
+2. 🔧 Dependência técnica
+3. ⚠️ Risco técnico
+4. 📐 Requisito da disciplina
 
-Entregar um sistema funcional, modular e seguro, que:
+### Categorias de prioridade
 
-- Oriente consumidores com base em fluxos oficiais do PROCON
-- Utilize LLM de forma controlada e transparente
-- Respeite princípios de usabilidade e proteção de dados
-- Permita análise posterior das interações
+| Nível | Descrição |
+|-------|-----------|
+| **P0** | 🔴 Crítico |
+| **P1** | 🟠 Alto    |
+| **P2** | 🟡 Médio   |
+| **P3** | 🟢 Baixo   |
 
-## 📅 Planejamento
+---
 
-O desenvolvimento será organizado em 3 sprints:
+## 📝 Product Backlog Completo
 
-- **Sprint 1:** Estrutura básica + motor de fluxo
-- **Sprint 2:** Persistência + conformidade LGPD
-- **Sprint 3:** Integração LLM + refinamentos finais
+| ID   | User Story                                       | Prioridade | Story Points |
+|------|--------------------------------------------------|:----------:|:------------:|
+| US01 | Integrar chatbot ao WhatsApp                     | P0         | 5            |
+| US02 | Receber mensagens de usuários                    | P0         | 3            |
+| US03 | Enviar respostas ao usuário                      | P0         | 3            |
+| US04 | Gerenciar sessões de conversa                    | P0         | 3            |
+| US05 | Criar motor de fluxo decisório                   | P0         | 5            |
+| US06 | Implementar fluxo de cobrança indevida           | P0         | 3            |
+| US07 | Implementar fluxo de empréstimo não reconhecido  | P0         | 3            |
+| US08 | Implementar fluxo de direito de arrependimento   | P0         | 3            |
+| US09 | Implementar fluxo de cancelamento de plano       | P1         | 3            |
+| US10 | Implementar fluxo de garantia de produto         | P1         | 3            |
+| US11 | Persistir histórico de mensagens                 | P0         | 3            |
+| US12 | Estruturar base FAQ do PROCON                    | P0         | 3            |
+| US13 | Implementar ingestão do CDC PDF                  | P1         | 5            |
+| US14 | Realizar chunking do CDC                         | P1         | 3            |
+| US15 | Gerar embeddings da base de conhecimento         | P1         | 5            |
+| US16 | Implementar busca semântica (RAG)                | P1         | 5            |
+| US17 | Classificar intenção da mensagem                 | P1         | 5            |
+| US18 | Extrair entidades relevantes                     | P2         | 3            |
+| US19 | Integrar LLM para resposta final                 | P1         | 3            |
+| US20 | Implementar logs de auditoria                    | P1         | 3            |
+| US21 | Criar deploy em nuvem                            | P0         | 5            |
+| US22 | Criar container Docker                           | P1         | 3            |
+| US23 | Criar pipeline CI/CD                             | P2         | 3            |
+| US24 | Implementar fallback para atendimento presencial | P1         | 2            |
+| US25 | Adicionar aviso de uso de IA                     | P1         | 1            |
+| US26 | Criar dashboard simples de métricas              | P2         | 5            |
+| US27 | Implementar monitoramento e logs                 | P2         | 3            |
+| US28 | Criar testes básicos                             | P2         | 3            |
+| US29 | Documentar arquitetura                           | P2         | 2            |
+| US30 | Criar documentação de uso                        | P2         | 2            |
 
-📎 Projeto acadêmico – Desenvolvimento de Software Multiplataforma  
-Instituição: Fatec Jacareí
-Semestre: 6º semestre - 2026
