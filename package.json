@@ -8,9 +8,10 @@
     "test": "tests"
   },
   "scripts": {
-  "test": "vitest",
-  "test:run": "vitest run",
-  "dev": "ts-node src/index.ts"
+    "test": "vitest",
+    "test:run": "vitest run",
+    "dev": "ts-node src/index.ts",
+    "play": "tsx src/playground/flow-runner.ts"
   },
   "repository": {
     "type": "git",
@@ -27,6 +28,7 @@
   "devDependencies": {
     "@types/node": "^25.5.0",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"
   }

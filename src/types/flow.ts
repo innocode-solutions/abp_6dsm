@@ -1,26 +1,47 @@
 /**
- * Define o contrato (interfaces) dos fluxos do chatbot.
- * Todos os fluxos devem seguir essa estrutura para que o motor de fluxo
- * consiga interpretá-los de forma padronizada.
+ * flow.ts define os tipos/interfaces dos fluxos.
+ * Os arquivos .json em src/flows são os fluxos reais que seguem esse formato.
+ * O motor de fluxo usa esses tipos para executar qualquer fluxo de forma genérica.
  */
+
+export interface FlowOption {
+  label: string;
+  value: string;
+}
 
 export interface FlowStep {
   id: string;
   question: string;
   type: "choice" | "text";
-  options?: string[];
+  options?: FlowOption[];
 }
 
-export interface FlowResult {
+export interface FlowRule {
+  conditions: Record<string, string>;
+  response: string;
+}
+
+export interface FlowResponse {
   summary: string;
-  recommendation: string[];
+  message: string;
+  recommendations?: string[];
   documents?: string[];
+  disclaimer?: string;
 }
 
 export interface FlowDefinition {
   id: string;
   title: string;
+  description?: string;
   triggers: string[];
   steps: FlowStep[];
-  results: Record<string, FlowResult>;
+  rules: FlowRule[];
+  responses: Record<string, FlowResponse>;
+}
+
+export interface FlowSession {
+  flowId: string;
+  currentStepIndex: number;
+  answers: Record<string, string>;
+  finished: boolean;
 }
