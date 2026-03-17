@@ -1,160 +1,196 @@
-# 🤖 ProconBot Jacareí
+<span id="topo"></span>
 
-> Chatbot inteligente para orientação sobre direitos do consumidor via WhatsApp.
+<h1 align="center"> ProconBot Jacareí </h1>
+
+<h2 align="center"> FATEC Professor Francisco de Moura, Jacareí - 6º Semestre DSM 2026 </h2>
+
+<p align="center">
+  <a href="#sobre">Sobre</a> |
+  <a href="#visao">Visão do Produto</a> |
+  <a href="#backlog">Product Backlog</a> |
+  <a href="#sprints">Sprints</a> |
+  <a href="#fluxos">Fluxos</a> |
+  <a href="#equipe">Equipe</a>
+</p>
 
 ---
 
-## 📋 Visão do Produto
+<span id="sobre"></span>
 
-### Descrição
+<h1 align="center">Sobre</h1>
+
+<p>
+
+Este projeto foi desenvolvido pelos alunos do 6º semestre de Desenvolvimento de Software Multiplataforma (DSM) da Fatec de Jacareí como parte da Aprendizagem Baseada em Projeto (ABP). O **ProconBot Jacareí** é um chatbot inteligente que auxilia consumidores a obter orientações iniciais sobre seus direitos utilizando o WhatsApp como canal principal de comunicação.
+
+</p>
+
+<p>
+
+A solução combina fluxos decisórios baseados nas orientações do PROCON com técnicas de **Processamento de Linguagem Natural (PLN)** e **RAG (Retrieval Augmented Generation)**. A base de conhecimento utilizada pelo sistema inclui as **FAQs do PROCON** e o **Código de Defesa do Consumidor (CDC)**, permitindo recuperar informações relevantes para orientar os usuários.
+
+</p>
+
+<p>
+
+O sistema utiliza **Node.js e TypeScript no backend**, integração com **WhatsApp via whatsapp-web.js**, armazenamento de dados em banco relacional e infraestrutura em **computação em nuvem**, permitindo registrar interações, auditar respostas e gerar orientações claras aos consumidores.
+
+</p>
+
+---
+
+<span id="visao"></span>
+
+<h1 align="center">Visão do Produto</h1>
+
+<h3>Descrição</h3>
 
 Um chatbot inteligente acessível via **WhatsApp** que fornece orientação inicial sobre direitos do consumidor, utilizando:
 
-- 🔀 Fluxos decisórios baseados nas orientações do PROCON
-- 📚 Recuperação de conhecimento (**RAG**) baseada nas FAQs e no Código de Defesa do Consumidor
-- 🧠 Técnicas de **PLN** para interpretação de mensagens
-- ✍️ Geração controlada de respostas com **LLM**
-- ☁️ Infraestrutura em nuvem para execução e persistência
+- 🔀 Fluxos decisórios baseados nas orientações do PROCON  
+- 📚 Recuperação de conhecimento (**RAG**) baseada nas FAQs e no Código de Defesa do Consumidor  
+- 🧠 Técnicas de **PLN** para interpretação de mensagens  
+- ✍️ Geração controlada de respostas com **LLM**  
+- ☁️ Infraestrutura em nuvem para execução e persistência  
 
-### 🎯 Objetivo
+<h3>Objetivo</h3>
 
 Auxiliar cidadãos a entender seus direitos e os próximos passos para resolver problemas de consumo.
 
-### 👥 Usuários
-
-- Consumidores da cidade
-- Estudantes / testadores do sistema
-
 ---
 
-## 🧑‍💼 Personas
+<span id="backlog"></span>
 
-### Consumidor
-
-Pessoa que teve problema com empresa e precisa saber:
-
-- Se tem direito
-- Que documentos levar
-- Como reclamar
-
-### Administrador / Auditor
-
-Precisa:
-
-- Consultar histórico
-- Analisar conversas
-- Validar orientações do chatbot
-
----
-
-## ✅ Definition of Done (DoD)
-
-Uma história será considerada concluída quando:
-
-#### 💻 Código
-- [ ] Implementado em **TypeScript**
-- [ ] Versionado no **GitHub**
-- [ ] Revisado por pelo menos **1 membro** da equipe
-
-#### 🧪 Testes
-- [ ] Fluxo principal testado manualmente
-- [ ] Erros tratados adequadamente
-
-#### ☁️ Infraestrutura
-- [ ] Funcional em ambiente cloud
-- [ ] Container **Docker** construído
-- [ ] Variáveis de ambiente configuradas
-
-#### 🔗 Integração
-- [ ] Integração com **WhatsApp** funcionando
-- [ ] Banco persistindo dados
-
-#### 🤖 IA
-- [ ] Uso de LLM restrito à geração textual
-- [ ] Resposta baseada em dados recuperados (**RAG**)
-
-#### 📄 Documentação
-- [ ] README atualizado
-- [ ] Descrição da feature registrada
-
----
-
-## 📊 Escala de Pontuação
-
-### Story Points (Fibonacci)
-
-| Pontos | Complexidade   |
-|--------|----------------|
-| 1      | Trivial        |
-| 2      | Simples        |
-| 3      | Moderado       |
-| 5      | Complexo       |
-| 8      | Muito complexo |
-
----
-
-## 🎯 Critério de Priorização
-
-Priorização baseada em:
-
-1. 💡 Valor para o usuário
-2. 🔧 Dependência técnica
-3. ⚠️ Risco técnico
-4. 📐 Requisito da disciplina
-
-### Categorias de prioridade
-
-| Nível | Descrição |
-|-------|-----------|
-| **P0** | 🔴 Crítico |
-| **P1** | 🟠 Alto    |
-| **P2** | 🟡 Médio   |
-| **P3** | 🟢 Baixo   |
-
----
-
-## 📝 Product Backlog Completo
+<h1 align="center">Product Backlog</h1>
 
 | ID   | User Story                                       | Prioridade | Story Points |
 |------|--------------------------------------------------|:----------:|:------------:|
-| US01 | Integrar chatbot ao WhatsApp                     | P0         | 5            |
-| US02 | Receber mensagens de usuários                    | P0         | 3            |
-| US03 | Enviar respostas ao usuário                      | P0         | 3            |
-| US04 | Gerenciar sessões de conversa                    | P0         | 3            |
-| US05 | Criar motor de fluxo decisório                   | P0         | 5            |
-| US06 | Implementar fluxo de cobrança indevida           | P0         | 3            |
-| US07 | Implementar fluxo de empréstimo não reconhecido  | P0         | 3            |
-| US08 | Implementar fluxo de direito de arrependimento   | P0         | 3            |
-| US09 | Implementar fluxo de cancelamento de plano       | P1         | 3            |
-| US10 | Implementar fluxo de garantia de produto         | P1         | 3            |
-| US11 | Persistir histórico de mensagens                 | P0         | 3            |
-| US12 | Estruturar base FAQ do PROCON                    | P0         | 3            |
-| US13 | Implementar ingestão do CDC PDF                  | P1         | 5            |
-| US14 | Realizar chunking do CDC                         | P1         | 3            |
-| US15 | Gerar embeddings da base de conhecimento         | P1         | 5            |
-| US16 | Implementar busca semântica (RAG)                | P1         | 5            |
-| US17 | Classificar intenção da mensagem                 | P1         | 5            |
-| US18 | Extrair entidades relevantes                     | P2         | 3            |
-| US19 | Integrar LLM para resposta final                 | P1         | 3            |
-| US20 | Implementar logs de auditoria                    | P1         | 3            |
-| US21 | Criar deploy em nuvem                            | P0         | 5            |
-| US22 | Criar container Docker                           | P1         | 3            |
-| US23 | Criar pipeline CI/CD                             | P2         | 3            |
-| US24 | Implementar fallback para atendimento presencial | P1         | 2            |
-| US25 | Adicionar aviso de uso de IA                     | P1         | 1            |
-| US26 | Criar dashboard simples de métricas              | P2         | 5            |
-| US27 | Implementar monitoramento e logs                 | P2         | 3            |
-| US28 | Criar testes básicos                             | P2         | 3            |
-| US29 | Documentar arquitetura                           | P2         | 2            |
-| US30 | Criar documentação de uso                        | P2         | 2            |
+| US01 | Integrar chatbot ao WhatsApp                     | P0 | 5 |
+| US02 | Receber mensagens de usuários                    | P0 | 3 |
+| US03 | Enviar respostas ao usuário                      | P0 | 3 |
+| US04 | Gerenciar sessões de conversa                    | P0 | 3 |
+| US05 | Criar motor de fluxo decisório                   | P0 | 5 |
+| US06 | Implementar fluxo de cobrança indevida           | P0 | 3 |
+| US07 | Implementar fluxo de empréstimo não reconhecido  | P0 | 3 |
+| US08 | Implementar fluxo de direito de arrependimento   | P0 | 3 |
+| US09 | Implementar fluxo de cancelamento de plano       | P1 | 3 |
+| US10 | Implementar fluxo de garantia de produto         | P1 | 3 |
+| US11 | Persistir histórico de mensagens                 | P0 | 3 |
+| US12 | Estruturar base FAQ do PROCON                    | P0 | 3 |
+| US13 | Implementar ingestão do CDC PDF                  | P1 | 5 |
+| US14 | Realizar chunking do CDC                         | P1 | 3 |
+| US15 | Gerar embeddings da base de conhecimento         | P1 | 5 |
+| US16 | Implementar busca semântica (RAG)                | P1 | 5 |
+| US17 | Classificar intenção da mensagem                 | P1 | 5 |
+| US18 | Extrair entidades relevantes                     | P2 | 3 |
+| US19 | Integrar LLM para resposta final                 | P1 | 3 |
+| US20 | Implementar logs de auditoria                    | P1 | 3 |
+| US21 | Criar deploy em nuvem                            | P0 | 5 |
+| US22 | Criar container Docker                           | P1 | 3 |
+| US23 | Criar pipeline CI/CD                             | P2 | 3 |
+| US24 | Implementar fallback para atendimento presencial | P1 | 2 |
+| US25 | Adicionar aviso de uso de IA                     | P1 | 1 |
+| US26 | Criar dashboard simples de métricas              | P2 | 5 |
+| US27 | Implementar monitoramento e logs                 | P2 | 3 |
+| US28 | Criar testes básicos                             | P2 | 3 |
+| US29 | Documentar arquitetura                           | P2 | 2 |
+| US30 | Criar documentação de uso                        | P2 | 2 |
 
 ---
 
-<details>
-<summary><h2>Fluxos Esperados</h2></summary>
+<span id="sprints"></span>
+
+<h1 align="center">Sprints</h1>
 
 <details>
-<summary><h3>Fluxo geral do sistema</h3></summary>
+<summary><h3>Sprint 1 — MVP do Chatbot</h3></summary>
+
+**Objetivo:**  
+Implementar a comunicação via WhatsApp e os primeiros fluxos de atendimento do PROCON.
+
+**Backlog da Sprint:**
+
+| ID | User Story | Pontos |
+|----|------------|-------|
+| US01 | Integrar chatbot ao WhatsApp | 5 |
+| US02 | Receber mensagens de usuários | 3 |
+| US03 | Enviar respostas ao usuário | 3 |
+| US04 | Gerenciar sessões de conversa | 3 |
+| US05 | Criar motor de fluxo decisório | 5 |
+| US06 | Fluxo cobrança indevida | 3 |
+| US07 | Fluxo empréstimo não reconhecido | 3 |
+| US08 | Fluxo direito de arrependimento | 3 |
+| US09 | Fluxo cancelamento de plano | 3 |
+| US11 | Persistir histórico de mensagens | 3 |
+
+</details>
+
+<details>
+<summary><h3>Sprint 2 — Inteligência (PLN + RAG)</h3></summary>
+
+**Objetivo:**  
+Implementar a base de conhecimento e a capacidade de interpretar perguntas livres.
+
+**Backlog da Sprint:**
+
+| ID | User Story | Pontos |
+|----|------------|-------|
+| US10 | Fluxo garantia de produto | 3 |
+| US12 | Estruturar base FAQ | 3 |
+| US13 | Ingestão CDC PDF | 5 |
+| US14 | Chunking CDC | 3 |
+| US15 | Gerar embeddings | 5 |
+| US16 | Implementar busca semântica (RAG) | 5 |
+| US17 | Classificar intenção | 5 |
+| US18 | Extrair entidades | 3 |
+
+</details>
+
+<details>
+<summary><h3>Sprint 3 — Infraestrutura Cloud e Governança</h3></summary>
+
+**Objetivo:**  
+Realizar deploy em nuvem, implementar observabilidade, governança e documentação do sistema.
+
+**Backlog da Sprint:**
+
+| ID | User Story | Pontos |
+|----|------------|-------|
+| US19 | Integrar LLM para resposta final | 3 |
+| US20 | Logs auditoria | 3 |
+| US21 | Deploy em nuvem | 5 |
+| US22 | Container Docker | 3 |
+| US23 | Pipeline CI/CD | 3 |
+| US24 | Fallback atendimento presencial | 2 |
+| US25 | Aviso uso IA | 1 |
+| US26 | Dashboard métricas | 5 |
+| US27 | Monitoramento | 3 |
+| US28 | Testes | 3 |
+| US29 | Documentação arquitetura | 2 |
+| US30 | Documentação uso | 2 |
+
+</details>
+<span id="equipe"></span>
+
+<h1 align="center">Equipe</h1> <div align="center">
+ 
+| Função          | Nome                     | GitHub                                                       | LinkedIn |
+|-----------------|--------------------------|--------------------------------------------------------------|----------|
+| Product Owner   | Mauro do Prado Santos    | [![GitHub Badge](https://img.shields.io/badge/GitHub-111217?style=flat-square&logo=github&logoColor=white)](https://github.com/omaurosantos) | [![Linkedin Badge](https://img.shields.io/badge/Linkedin-blue?style=flat-square&logo=Linkedin&logoColor=white)](https://www.linkedin.com/in/mauro-do-prado-santos-350b2720a/) |
+| Scrum Master    | Vitor Cezar de Souza     | [![GitHub Badge](https://img.shields.io/badge/GitHub-111217?style=flat-square&logo=github&logoColor=white)](https://github.com/vooshybee) | [![Linkedin Badge](https://img.shields.io/badge/Linkedin-blue?style=flat-square&logo=Linkedin&logoColor=white)](https://www.linkedin.com/in/vitor-souza-29077228b/) |
+| Dev Team        | Igor Fonseca             | [![GitHub Badge](https://img.shields.io/badge/GitHub-111217?style=flat-square&logo=github&logoColor=white)](https://github.com/Igor-Fons) | [![Linkedin Badge](https://img.shields.io/badge/Linkedin-blue?style=flat-square&logo=Linkedin&logoColor=white)](https://www.linkedin.com/in/igor-fonseca-84277226a/) |
+| Dev Team    | Jonatas Filipe Carvalho  | [![GitHub Badge](https://img.shields.io/badge/GitHub-111217?style=flat-square&logo=github&logoColor=white)](https://github.com/filipejonatas) | [![Linkedin Badge](https://img.shields.io/badge/Linkedin-blue?style=flat-square&logo=Linkedin&logoColor=white)](https://www.linkedin.com/in/jonatas-filipe-aa4534165/) |
+| Dev Team        | Samuel Lucas Vieira de Melo | [![GitHub Badge](https://img.shields.io/badge/GitHub-111217?style=flat-square&logo=github&logoColor=white)](https://github.com/SamuelLucasVieira) | [![Linkedin Badge](https://img.shields.io/badge/Linkedin-blue?style=flat-square&logo=Linkedin&logoColor=white)](https://www.linkedin.com/in/samuel-lucas-7a3256144/) |
+</div>
+
+---
+
+<span id="fluxos"></span>
+
+<h1 align="center">Fluxos Esperados</h1>
+
+<details>
+<summary><h3>1. Fluxo geral do sistema</h3></summary>
  
 ```mermaid
 flowchart TD
@@ -191,7 +227,7 @@ flowchart TD
 </details>
 
 <details>
-<summary><h3>Fluxo da conversa no WhatsApp</h3></summary>
+<summary><h3>2. Fluxo da conversa no WhatsApp</h3></summary>
 
 ```mermaid
 flowchart TD
@@ -227,7 +263,7 @@ flowchart TD
 </details>
 
 <details>
-<summary><h3>Arquitetura da Solução</h3></summary>
+<summary><h3>3. Arquitetura da Solução</h3></summary>
 
 ```mermaid
 flowchart LR
@@ -259,7 +295,7 @@ flowchart LR
 </details>
 
 <details>
-<summary><h3>Fluxo interno do RAG</h3></summary>
+<summary><h3>4. Fluxo interno do RAG</h3></summary>
 
 ```mermaid
 flowchart TD
@@ -281,7 +317,7 @@ flowchart TD
 </details>
 
 <details>
-<summary><h3>Fluxo de um caso prático</h3></summary>
+<summary><h3>5. Fluxo de um caso prático</h3></summary>
 
 ```mermaid
 flowchart TD
@@ -302,5 +338,4 @@ flowchart TD
     L --> M[Salvar histórico e logs]
     M --> N[Responder no WhatsApp]
 ```
-</details>
 </details>
