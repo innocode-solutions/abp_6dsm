@@ -1,0 +1,33 @@
+{
+  "name": "abp_6dsm",
+  "version": "1.0.0",
+  "description": "<span id=\"topo\"></span>",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+  "test": "vitest",
+  "test:run": "vitest run",
+  "dev": "ts-node src/index.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/innocode-solutions/abp_6dsm.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/innocode-solutions/abp_6dsm/issues"
+  },
+  "homepage": "https://github.com/innocode-solutions/abp_6dsm#readme",
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
+  }
+}
