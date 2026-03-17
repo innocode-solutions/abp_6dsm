@@ -150,8 +150,12 @@ Priorização baseada em:
 
 ---
 
-## Fluxos Esperados
-### Fluxo geral do sistema
+<details>
+<summary><h2>Fluxos Esperados</h2></summary>
+
+<details>
+<summary><h3>Fluxo geral do sistema</h3></summary>
+ 
 ```mermaid
 flowchart TD
     A[Usuário envia mensagem no WhatsApp] --> B[whatsapp-web.js captura mensagem]
@@ -184,8 +188,11 @@ flowchart TD
     Q --> R[Salvar histórico e logs]
     R --> S[Enviar resposta ao usuário no WhatsApp]
 ```
----
-### Fluxo da conversa no WhatsApp
+</details>
+
+<details>
+<summary><h3>Fluxo da conversa no WhatsApp</h3></summary>
+
 ```mermaid
 flowchart TD
     A[Usuário inicia conversa] --> B[Bot recebe mensagem]
@@ -217,8 +224,11 @@ flowchart TD
     Q --> R[Salvar histórico e auditoria]
     R --> S[Responder no WhatsApp]
 ```
----
-### Arquitetura da Solução
+</details>
+
+<details>
+<summary><h3>Arquitetura da Solução</h3></summary>
+
 ```mermaid
 flowchart LR
     U[Usuário] --> W[WhatsApp]
@@ -246,8 +256,11 @@ flowchart LR
 
     API --> CLOUD[Infraestrutura em Nuvem]
 ```
----
-### Fluxo interno do RAG
+</details>
+
+<details>
+<summary><h3>Fluxo interno do RAG</h3></summary>
+
 ```mermaid
 flowchart TD
     A[Pergunta do usuário] --> B[Normalização do texto]
@@ -265,8 +278,11 @@ flowchart TD
     I --> J[LLM ou template de resposta]
     J --> K[Resposta orientativa ao usuário]
 ```
----
-### Fluxo de um caso prático
+</details>
+
+<details>
+<summary><h3>Fluxo de um caso prático</h3></summary>
+
 ```mermaid
 flowchart TD
     A[Usuário: Estão cobrando algo no meu cartão que não reconheço] --> B[Classificar intenção]
@@ -286,3 +302,5 @@ flowchart TD
     L --> M[Salvar histórico e logs]
     M --> N[Responder no WhatsApp]
 ```
+</details>
+</details>
