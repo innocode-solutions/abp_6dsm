@@ -1,0 +1,155 @@
+{
+  "id": "cancelamento_plano",
+  "title": "Cancelamento de plano ou serviço",
+  "description": "Fluxo para orientar consumidores com dificuldade para cancelar planos ou serviços contratados.",
+  "triggers": [
+    "quero cancelar meu plano",
+    "não consigo cancelar o plano",
+    "cancelar serviço",
+    "cancelar contrato",
+    "cancelar internet",
+    "cancelar telefone",
+    "cancelar academia",
+    "cancelar assinatura"
+  ],
+  "steps": [
+    {
+      "id": "tipo_servico",
+      "question": "Qual tipo de plano ou serviço você quer cancelar?",
+      "type": "choice",
+      "options": [
+        { "label": "Plano de telefone / internet", "value": "telefonia" },
+        { "label": "Academia", "value": "academia" },
+        { "label": "Assinatura / streaming", "value": "assinatura" },
+        { "label": "Outro serviço", "value": "outro" }
+      ]
+    },
+    {
+      "id": "tentou_cancelar",
+      "question": "Você já tentou solicitar o cancelamento com a empresa?",
+      "type": "choice",
+      "options": [
+        { "label": "Sim", "value": "sim" },
+        { "label": "Não", "value": "nao" }
+      ]
+    },
+    {
+      "id": "tem_protocolo",
+      "question": "Você possui número de protocolo, mensagens ou e-mails do pedido de cancelamento?",
+      "type": "choice",
+      "options": [
+        { "label": "Sim", "value": "sim" },
+        { "label": "Não", "value": "nao" }
+      ]
+    },
+    {
+      "id": "tem_fidelidade",
+      "question": "O contrato possui cláusula de fidelidade ou multa por cancelamento antecipado?",
+      "type": "choice",
+      "options": [
+        { "label": "Sim", "value": "sim" },
+        { "label": "Não", "value": "nao" },
+        { "label": "Não sei", "value": "nao_sei" }
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "conditions": {
+        "tentou_cancelar": "sim",
+        "tem_fidelidade": "nao"
+      },
+      "response": "cancelamento_imediato"
+    },
+    {
+      "conditions": {
+        "tentou_cancelar": "sim",
+        "tem_fidelidade": "sim"
+      },
+      "response": "cancelamento_com_fidelidade"
+    },
+    {
+      "conditions": {
+        "tentou_cancelar": "nao"
+      },
+      "response": "orientar_tentar_cancelamento"
+    },
+    {
+      "conditions": {
+        "tem_fidelidade": "nao_sei"
+      },
+      "response": "orientar_contrato"
+    }
+  ],
+  "responses": {
+    "cancelamento_imediato": {
+      "summary": "O consumidor pode buscar o cancelamento do serviço sem entraves indevidos.",
+      "message": "Você pode procurar o PROCON para solicitar o cancelamento imediato do serviço, a suspensão das cobranças e outras medidas caso a empresa persista na recusa do cancelamento.",
+      "recommendations": [
+        "Solicitar cancelamento imediato do serviço",
+        "Solicitar suspensão das cobranças",
+        "Guardar provas do pedido de cancelamento"
+      ],
+      "documents": [
+        "RG com CPF",
+        "Contrato",
+        "Comprovantes de pagamento",
+        "Mensagens e e-mails",
+        "Número de protocolo do pedido de cancelamento",
+        "CNPJ da matriz do fornecedor"
+      ],
+      "disclaimer": "Esta resposta tem caráter orientativo e não substitui o atendimento formal do PROCON."
+    },
+    "cancelamento_com_fidelidade": {
+      "summary": "O cancelamento pode envolver análise de multa por fidelidade.",
+      "message": "O consumidor pode buscar o cancelamento do serviço, mas o caso pode envolver cláusula de fidelidade ou multa por quebra contratual. Nessas situações, pode ser necessário comparecimento presencial no PROCON para análise mais detalhada.",
+      "recommendations": [
+        "Solicitar o cancelamento",
+        "Reunir contrato e comprovantes",
+        "Levar o caso ao PROCON para análise da multa"
+      ],
+      "documents": [
+        "RG com CPF",
+        "Contrato",
+        "Comprovantes de pagamento",
+        "Mensagens e e-mails",
+        "Número de protocolo do pedido de cancelamento",
+        "CNPJ da matriz do fornecedor"
+      ],
+      "disclaimer": "A validade de eventual multa depende da análise do contrato e do caso concreto."
+    },
+    "orientar_tentar_cancelamento": {
+      "summary": "É importante solicitar primeiro o cancelamento diretamente à empresa.",
+      "message": "Antes de registrar reclamação, é recomendável solicitar formalmente o cancelamento à empresa e guardar o número de protocolo, e-mails ou mensagens da solicitação.",
+      "recommendations": [
+        "Solicitar formalmente o cancelamento",
+        "Guardar protocolo, e-mails ou mensagens",
+        "Reunir comprovantes de pagamento"
+      ],
+      "disclaimer": "Se houver dificuldade ou recusa indevida, o consumidor pode procurar o PROCON."
+    },
+    "orientar_contrato": {
+      "summary": "É importante verificar se existe cláusula de fidelidade no contrato.",
+      "message": "Para avaliar corretamente o cancelamento, é importante verificar o contrato e identificar se existe cláusula de fidelidade ou multa por cancelamento antecipado.",
+      "recommendations": [
+        "Revisar o contrato",
+        "Separar comprovantes e protocolos",
+        "Buscar orientação do PROCON se houver recusa ou cobrança indevida"
+      ],
+      "documents": [
+        "RG com CPF",
+        "Contrato",
+        "Comprovantes de pagamento",
+        "Mensagens e e-mails",
+        "Número de protocolo",
+        "CNPJ da matriz do fornecedor"
+      ],
+      "disclaimer": "Esta resposta é apenas orientativa."
+    },
+    "fallback": {
+      "summary": "Não foi possível identificar a situação com segurança.",
+      "message": "Recomendamos procurar atendimento presencial no PROCON para análise detalhada do caso.",
+      "disclaimer": "O chatbot fornece apenas orientação inicial."
+    }
+  }
+}
