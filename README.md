@@ -148,3 +148,141 @@ Priorização baseada em:
 | US29 | Documentar arquitetura                           | P2         | 2            |
 | US30 | Criar documentação de uso                        | P2         | 2            |
 
+---
+
+## Fluxos Esperados
+### Fluxo geral do sistema
+```mermaid
+flowchart TD
+    A[Usuário envia mensagem no WhatsApp] --> B[whatsapp-web.js captura mensagem]
+    B --> C[Backend em Node.js / TypeScript]
+    C --> D[Gerenciador de sessão]
+
+    D --> E[Classificador de intenção]
+    E --> F{Existe fluxo específico?}
+
+    F -- Sim --> G[Motor de fluxo decisório]
+    G --> H[Próxima pergunta ou orientação parcial]
+
+    F -- Não --> I[Serviço de RAG]
+    I --> J[Busca na base FAQ do PROCON]
+    I --> K[Busca na base do CDC]
+
+    J --> L[Montagem de contexto]
+    K --> L
+
+    H --> M[Compositor de resposta]
+    L --> M
+
+    M --> N{Precisa LLM?}
+    N -- Sim --> O[LLM gera resposta em linguagem simples]
+    N -- Não --> P[Resposta montada por template]
+
+    O --> Q[Resposta final]
+    P --> Q
+
+    Q --> R[Salvar histórico e logs]
+    R --> S[Enviar resposta ao usuário no WhatsApp]
+```
+---
+### Fluxo da conversa no WhatsApp
+```mermaid
+flowchart TD
+    A[Usuário inicia conversa] --> B[Bot recebe mensagem]
+    B --> C{Usuário já possui sessão ativa?}
+
+    C -- Não --> D[Criar nova sessão]
+    C -- Sim --> E[Recuperar sessão existente]
+
+    D --> F[Analisar mensagem]
+    E --> F
+
+    F --> G{Mensagem corresponde a um fluxo?}
+
+    G -- Sim --> H[Entrar ou continuar fluxo]
+    H --> I[Fazer pergunta ao usuário]
+    I --> J[Usuário responde]
+    J --> K[Atualizar estado da sessão]
+    K --> L{Fluxo finalizado?}
+
+    L -- Não --> I
+    L -- Sim --> M[Gerar orientação final]
+
+    G -- Não --> N[Executar busca semântica RAG]
+    N --> O[Recuperar FAQ + CDC]
+    O --> P[Gerar resposta orientativa]
+
+    M --> Q[Exibir aviso de uso orientativo]
+    P --> Q
+    Q --> R[Salvar histórico e auditoria]
+    R --> S[Responder no WhatsApp]
+```
+---
+### Arquitetura da Solução
+```mermaid
+flowchart LR
+    U[Usuário] --> W[WhatsApp]
+    W --> WWJ[whatsapp-web.js]
+
+    WWJ --> API[Backend Node.js + TypeScript]
+
+    API --> SES[Gerenciador de Sessão]
+    API --> DEC[Motor de Fluxo]
+    API --> PLN[Serviço de PLN]
+    API --> RAG[Serviço de RAG]
+    API --> LLM[Serviço de LLM]
+    API --> AUD[Logs e Auditoria]
+
+    PLN --> INT[Classificação de intenção]
+    PLN --> ENT[Extração de entidades]
+
+    RAG --> FAQ[Base FAQ PROCON]
+    RAG --> CDC[Base CDC]
+    FAQ --> DB[(PostgreSQL / pgvector)]
+    CDC --> DB
+
+    SES --> DB
+    AUD --> DB
+
+    API --> CLOUD[Infraestrutura em Nuvem]
+```
+---
+### Fluxo interno do RAG
+```mermaid
+flowchart TD
+    A[Pergunta do usuário] --> B[Normalização do texto]
+    B --> C[Classificação de intenção]
+    C --> D[Extração de entidades]
+    D --> E[Consulta vetorial]
+
+    E --> F[Recuperar chunks da FAQ]
+    E --> G[Recuperar chunks do CDC]
+
+    F --> H[Re-ranking / seleção dos melhores trechos]
+    G --> H
+
+    H --> I[Montagem do contexto final]
+    I --> J[LLM ou template de resposta]
+    J --> K[Resposta orientativa ao usuário]
+```
+---
+### Fluxo de um caso prático
+```mermaid
+flowchart TD
+    A[Usuário: Estão cobrando algo no meu cartão que não reconheço] --> B[Classificar intenção]
+    B --> C[Intenção: cobrança indevida]
+
+    C --> D[Iniciar fluxo de cobrança indevida]
+    D --> E[Bot pergunta se usuário reconhece a contratação]
+    E --> F[Bot pergunta se possui fatura ou comprovante]
+    F --> G[Bot identifica documentos necessários]
+
+    G --> H[Buscar FAQ relacionada]
+    H --> I[Buscar artigos do CDC relacionados]
+
+    I --> J[Montar orientação]
+    J --> K[Gerar resposta clara]
+    K --> L[Informar caráter orientativo]
+    L --> M[Salvar histórico e logs]
+    M --> N[Responder no WhatsApp]
+```
