@@ -1,0 +1,184 @@
+{
+  "id": "garantia_produto",
+  "title": "Garantia de produto",
+  "description": "Fluxo para orientar consumidores sobre garantia legal, contratual e caminhos para resolução quando um produto apresenta defeito.",
+  "triggers": [
+    "garantia de produto",
+    "produto com defeito",
+    "quero acionar a garantia",
+    "garantia legal",
+    "garantia contratual",
+    "produto apresentou defeito",
+    "não querem atender a garantia",
+    "produto usado tem garantia"
+  ],
+  "steps": [
+    {
+      "id": "produto_com_defeito",
+      "question": "O produto apresentou defeito ou vício?",
+      "type": "choice",
+      "options": [
+        { "label": "Sim", "value": "sim" },
+        { "label": "Não", "value": "nao" },
+        { "label": "Não sei", "value": "nao_sei" }
+      ]
+    },
+    {
+      "id": "tipo_produto",
+      "question": "O produto é durável ou não durável?",
+      "type": "choice",
+      "options": [
+        { "label": "Durável (ex: eletrodoméstico, móvel, eletrônico)", "value": "duravel" },
+        { "label": "Não durável (ex: alimento, item de consumo rápido)", "value": "nao_duravel" },
+        { "label": "Não sei informar", "value": "nao_sei" }
+      ]
+    },
+    {
+      "id": "tipo_garantia",
+      "question": "Você possui termo de garantia do fabricante ou garantia adicional contratada?",
+      "type": "choice",
+      "options": [
+        { "label": "Garantia contratual", "value": "contratual" },
+        { "label": "Garantia estendida", "value": "estendida" },
+        { "label": "Somente garantia legal", "value": "legal" },
+        { "label": "Não sei informar", "value": "nao_sei" }
+      ]
+    },
+    {
+      "id": "defeito_resolvido_30_dias",
+      "question": "O problema foi resolvido pela assistência ou fornecedor em até 30 dias?",
+      "type": "choice",
+      "options": [
+        { "label": "Sim", "value": "sim" },
+        { "label": "Não", "value": "nao" },
+        { "label": "Ainda não procurei assistência", "value": "nao_procurei" }
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "conditions": {
+        "produto_com_defeito": "sim",
+        "tipo_produto": "duravel",
+        "defeito_resolvido_30_dias": "nao"
+      },
+      "response": "garantia_duravel_nao_resolvido"
+    },
+    {
+      "conditions": {
+        "produto_com_defeito": "sim",
+        "tipo_produto": "nao_duravel",
+        "defeito_resolvido_30_dias": "nao"
+      },
+      "response": "garantia_nao_duravel_nao_resolvido"
+    },
+    {
+      "conditions": {
+        "produto_com_defeito": "sim",
+        "defeito_resolvido_30_dias": "sim"
+      },
+      "response": "problema_resolvido"
+    },
+    {
+      "conditions": {
+        "produto_com_defeito": "sim",
+        "defeito_resolvido_30_dias": "nao_procurei"
+      },
+      "response": "orientar_acionar_garantia"
+    },
+    {
+      "conditions": {
+        "produto_com_defeito": "nao"
+      },
+      "response": "caso_nao_aplicavel"
+    },
+    {
+      "conditions": {
+        "produto_com_defeito": "nao_sei"
+      },
+      "response": "orientar_documentos"
+    }
+  ],
+  "responses": {
+    "garantia_duravel_nao_resolvido": {
+      "summary": "Produto durável com defeito não resolvido no prazo legal.",
+      "message": "Segundo as orientações do PROCON, a garantia legal para produtos duráveis é de 90 dias. Se o vício não for solucionado em até 30 dias, o consumidor pode escolher entre a substituição do produto por outro novo, a devolução do valor pago ou o abatimento proporcional do preço.",
+      "recommendations": [
+        "Solicitar substituição do produto por outro novo",
+        "Solicitar devolução do valor pago",
+        "Solicitar abatimento proporcional do preço"
+      ],
+      "documents": [
+        "Documento pessoal com CPF",
+        "Nota fiscal, se houver",
+        "Extrato bancário, fatura do cartão ou comprovante de pedido",
+        "Termo de garantia, se houver",
+        "Comprovantes do defeito (fotos, vídeos, laudos, protocolos)",
+        "CNPJ da matriz do fornecedor"
+      ],
+      "disclaimer": "A garantia contratual é complementar à legal. Esta orientação é inicial e não substitui o atendimento formal do PROCON."
+    },
+    "garantia_nao_duravel_nao_resolvido": {
+      "summary": "Produto não durável com defeito não resolvido.",
+      "message": "Segundo o material do PROCON, a garantia legal para produtos não duráveis é de 30 dias. Se o defeito não for resolvido no prazo de até 30 dias, o consumidor pode buscar as alternativas previstas no CDC, como substituição, devolução do valor ou abatimento proporcional do preço, conforme o caso.",
+      "recommendations": [
+        "Solicitar solução do defeito",
+        "Solicitar devolução do valor, quando cabível",
+        "Reunir documentos e procurar o PROCON se o problema persistir"
+      ],
+      "documents": [
+        "Documento pessoal com CPF",
+        "Nota fiscal, se houver",
+        "Extrato bancário, fatura do cartão ou comprovante de pedido",
+        "Termo de garantia, se houver",
+        "Comprovantes do defeito",
+        "CNPJ da matriz do fornecedor"
+      ],
+      "disclaimer": "Os casos podem variar conforme o tipo de produto e a forma de uso."
+    },
+    "orientar_acionar_garantia": {
+      "summary": "É importante acionar primeiro a garantia do produto.",
+      "message": "O consumidor pode procurar o fornecedor, fabricante ou assistência autorizada para solicitar o reparo do defeito. A garantia legal existe mesmo sem termo escrito, e a garantia contratual, quando houver, complementa a legal.",
+      "recommendations": [
+        "Acionar a assistência ou fornecedor",
+        "Guardar protocolos, mensagens e comprovantes",
+        "Verificar se há termo de garantia contratual ou estendida"
+      ],
+      "documents": [
+        "Documento pessoal com CPF",
+        "Nota fiscal, se houver",
+        "Extrato bancário, fatura do cartão ou comprovante de pedido",
+        "Termo de garantia, se houver",
+        "Comprovantes do defeito"
+      ],
+      "disclaimer": "Produtos usados também podem ter garantia legal, especialmente se forem duráveis."
+    },
+    "problema_resolvido": {
+      "summary": "O problema já foi resolvido dentro do prazo informado.",
+      "message": "Se o defeito já foi solucionado, em princípio não há necessidade de seguir com reclamação neste fluxo. Ainda assim, guarde os comprovantes do atendimento e da solução realizada.",
+      "disclaimer": "O chatbot fornece apenas orientação inicial."
+    },
+    "caso_nao_aplicavel": {
+      "summary": "O fluxo de garantia se aplica a casos de defeito ou vício.",
+      "message": "Se o produto não apresentou defeito, pode ser mais adequado avaliar outro fluxo, como troca por arrependimento, cumprimento de oferta ou outro problema de consumo.",
+      "disclaimer": "O chatbot fornece apenas orientação inicial."
+    },
+    "orientar_documentos": {
+      "summary": "É importante reunir documentos e informações do caso.",
+      "message": "Se você ainda não sabe identificar o defeito ou o tipo de garantia aplicável, reúna comprovantes de compra, termo de garantia e registros do problema para uma análise mais segura.",
+      "documents": [
+        "Documento pessoal com CPF",
+        "Nota fiscal, se houver",
+        "Extrato bancário, fatura do cartão ou comprovante de pedido",
+        "Termo de garantia, se houver",
+        "Comprovantes do defeito"
+      ],
+      "disclaimer": "Pode ser necessário comparecimento presencial ao PROCON para análise detalhada."
+    },
+    "fallback": {
+      "summary": "Não foi possível identificar a situação com segurança.",
+      "message": "Recomendamos procurar atendimento presencial no PROCON para análise detalhada do caso.",
+      "disclaimer": "O chatbot fornece apenas orientação inicial."
+    }
+  }
+}
