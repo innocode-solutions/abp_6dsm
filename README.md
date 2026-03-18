@@ -97,6 +97,11 @@ Auxiliar cidadãos a entender seus direitos e os próximos passos para resolver 
 | US30 | RNF01 | Criar documentação de uso                       | P2 | 2 |
 | US31 | RNF02, RNF03 | Configurar banco de dados                | P0 | 5 |
 | US32 | RF03, RF06 | Persistir sessões no banco                 | P0 | 3 |
+| US33 | RF01, RF03 | Criar fluxo de agendamento                 | P1 | 5 |
+| US34 | RF03, RF06 | Listar horários disponíveis                | P1 | 5 |
+| US35 | RF06, RNF03 | Persistir agendamentos                    | P1 | 3 |
+| US36 | RF04 | Confirmar agendamento ao usuário                 | P1 | 2 |
+| US37 | RF03, RF06 | Cancelar ou reagendar atendimento         | P2 | 3 |
 
 ---
 
@@ -154,7 +159,7 @@ Implementar base de conhecimento, interpretação de linguagem e persistência d
 <summary><h3>Sprint 3 — Infraestrutura Cloud e Governança</h3></summary>
 
 **Objetivo:**  
-Realizar deploy em nuvem, implementar observabilidade, governança e documentação do sistema.
+Realizar deploy em nuvem, implementar observabilidade, governança, documentação e fluxo de agendamento.
 
 **Backlog da Sprint:**
 
@@ -172,9 +177,13 @@ Realizar deploy em nuvem, implementar observabilidade, governança e documentaç
 | US28 | RNF02 | Testes | 3 |
 | US29 | RNF01, RNF03 | Documentação arquitetura | 2 |
 | US30 | RNF01 | Documentação uso | 2 |
+| US33 | RF01, RF03 | Criar fluxo de agendamento | 5 |
+| US34 | RF03, RF06 | Listar horários disponíveis | 5 |
+| US35 | RF06, RNF03 | Persistir agendamentos | 3 |
+| US36 | RF04 | Confirmar agendamento ao usuário | 2 |
+| US37 | RF03, RF06 | Cancelar ou reagendar atendimento | 3 |
 
 </details>
-
 <span id="equipe"></span>
 
 <h1 align="center">Equipe</h1> <div align="center">
