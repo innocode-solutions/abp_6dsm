@@ -15,12 +15,15 @@ describe("Fluxo cobrança indevida", () => {
 
     const response = flow.responses[rule!.response as keyof typeof flow.responses];
 
-    expect(response.summary).toContain("cobrança indevida");
+    expect(response.summary).toContain("serviço não contratado");
 
     expect("recommendations" in response).toBe(true);
     if ("recommendations" in response) {
       expect(response.recommendations).toContain(
-        "Solicitar cancelamento da cobrança"
+        "Solicitar cancelamento imediato da cobrança"
+      );
+      expect(response.recommendations).toContain(
+        "Solicitar devolução em dobro dos valores cobrados indevidamente"
       );
     }
   });

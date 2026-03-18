@@ -1,19 +1,21 @@
 {
   "id": "emprestimo_nao_reconhecido",
   "title": "Empréstimo não reconhecido",
-  "description": "Fluxo para orientar consumidores que identificaram empréstimos ou descontos que não reconhecem.",
+  "description": "Fluxo para orientar consumidores que identificaram empréstimos ou descontos de benefício que não reconhecem.",
   "triggers": [
     "empréstimo não reconhecido",
     "empréstimo que não fiz",
     "consignado que não reconheço",
     "desconto no benefício",
     "empréstimo que não contratei",
-    "desconto de empréstimo desconhecido"
+    "desconto de empréstimo desconhecido",
+    "rmc que não reconheço",
+    "rcc que não reconheço"
   ],
   "steps": [
     {
       "id": "autorizou",
-      "question": "Você autorizou ou assinou esse empréstimo?",
+      "question": "Você autorizou ou assinou esse empréstimo/desconto?",
       "type": "choice",
       "options": [
         { "label": "Sim", "value": "sim" },
@@ -32,12 +34,13 @@
       ]
     },
     {
-      "id": "tem_extrato",
-      "question": "Você possui extrato bancário ou do benefício mostrando esse desconto?",
+      "id": "tipo_desconto",
+      "question": "Esse desconto aparece como empréstimo ou como RMC/RCC no benefício?",
       "type": "choice",
       "options": [
-        { "label": "Sim", "value": "sim" },
-        { "label": "Não", "value": "nao" }
+        { "label": "Empréstimo não contratado", "value": "emprestimo" },
+        { "label": "RMC / RCC não reconhecido", "value": "rmc_rcc" },
+        { "label": "Não sei informar", "value": "nao_sei" }
       ]
     }
   ],
@@ -45,9 +48,18 @@
     {
       "conditions": {
         "autorizou": "nao",
-        "usou_valor": "nao"
+        "usou_valor": "nao",
+        "tipo_desconto": "emprestimo"
       },
-      "response": "cancelamento_e_devolucao"
+      "response": "cancelamento_devolucao_contrato"
+    },
+    {
+      "conditions": {
+        "autorizou": "nao",
+        "usou_valor": "nao",
+        "tipo_desconto": "rmc_rcc"
+      },
+      "response": "devolucao_interrupcao_desconto"
     },
     {
       "conditions": {
@@ -70,48 +82,69 @@
     }
   ],
   "responses": {
-    "cancelamento_e_devolucao": {
-      "summary": "Pode se tratar de um empréstimo não reconhecido.",
-      "message": "Você pode procurar o PROCON para solicitar o cancelamento do empréstimo, o envio do contrato relacionado e a devolução dos valores cobrados indevidamente.",
+    "cancelamento_devolucao_contrato": {
+      "summary": "Pode se tratar de empréstimo não contratado.",
+      "message": "Segundo as orientações do PROCON, o consumidor pode abrir reclamação requerendo o cancelamento imediato, a devolução em dobro dos valores cobrados indevidamente e o envio do contrato.",
       "recommendations": [
-        "Solicitar cancelamento imediato do empréstimo",
-        "Solicitar envio do contrato relacionado",
-        "Solicitar devolução dos valores cobrados indevidamente"
+        "Solicitar cancelamento imediato",
+        "Solicitar devolução em dobro dos valores cobrados indevidamente",
+        "Solicitar envio do contrato"
       ],
       "documents": [
         "RG com CPF",
         "Extrato consignado do INSS",
-        "Extrato bancário com data do desconto",
+        "Extrato bancário com a data de inclusão",
         "Histórico de crédito",
-        "Mensagens ou e-mails com a empresa",
+        "Mensagens e e-mails, se houver",
         "CNPJ da matriz do fornecedor"
       ],
-      "disclaimer": "Esta orientação é inicial e não substitui atendimento presencial do PROCON."
+      "disclaimer": "Os casos podem ter variações. Esta orientação é inicial e não substitui o atendimento formal do PROCON."
     },
-    "analise_presencial": {
-      "summary": "O valor do empréstimo foi utilizado.",
-      "message": "Quando o valor é utilizado, o caso pode exigir análise específica. É recomendado procurar atendimento presencial no PROCON para avaliação do contrato e possíveis propostas de quitação.",
+    "devolucao_interrupcao_desconto": {
+      "summary": "Pode se tratar de desconto de RMC/RCC não reconhecido.",
+      "message": "Segundo o material do PROCON, o consumidor pode abrir reclamação requerendo a devolução em dobro dos valores cobrados indevidamente e a interrupção imediata dos descontos, salvo engano justificável.",
+      "recommendations": [
+        "Solicitar devolução em dobro dos valores cobrados indevidamente",
+        "Solicitar interrupção imediata dos descontos"
+      ],
       "documents": [
         "RG com CPF",
         "Extrato consignado do INSS",
-        "Extrato bancário",
-        "Histórico de crédito"
+        "Extrato bancário com a data de inclusão",
+        "Histórico de crédito",
+        "Mensagens e e-mails, se houver",
+        "CNPJ da matriz do fornecedor"
       ],
-      "disclaimer": "A análise do caso depende da avaliação do PROCON."
+      "disclaimer": "Os casos podem ter variações. Pode ser necessário atendimento presencial no PROCON."
+    },
+    "analise_presencial": {
+      "summary": "O valor do empréstimo/desconto foi utilizado.",
+      "message": "Quando o consumidor utilizou o dinheiro, o PROCON informa que o caso pode exigir proposta de quitação, sendo necessário comparecimento presencial para análise.",
+      "documents": [
+        "RG com CPF",
+        "Extrato consignado do INSS",
+        "Extrato bancário com a data de inclusão",
+        "Histórico de crédito",
+        "Mensagens e e-mails, se houver",
+        "CNPJ da matriz do fornecedor"
+      ],
+      "disclaimer": "A análise do caso depende da avaliação presencial do PROCON."
     },
     "caso_nao_aplicavel": {
-      "summary": "O empréstimo foi autorizado.",
-      "message": "Este fluxo é voltado para casos em que o consumidor não reconhece o empréstimo. Caso você tenha autorizado a contratação e esteja enfrentando outro problema, recomendamos buscar orientação específica para o seu caso.",
+      "summary": "O desconto/empréstimo foi autorizado pelo consumidor.",
+      "message": "Este fluxo é voltado para casos em que o consumidor não reconhece o empréstimo ou desconto. Se houve autorização, pode ser necessário avaliar outro tipo de problema contratual.",
       "disclaimer": "O chatbot fornece apenas orientação inicial."
     },
     "orientar_documentos": {
-      "summary": "Não foi possível identificar completamente o caso.",
-      "message": "Recomendamos reunir documentos relacionados ao desconto ou empréstimo e procurar orientação no PROCON para análise do caso.",
+      "summary": "É importante reunir documentos antes de prosseguir.",
+      "message": "Se você ainda não sabe se reconhece a contratação, reúna os documentos do caso para uma análise mais segura.",
       "documents": [
         "RG com CPF",
         "Extrato consignado do INSS",
-        "Extrato bancário",
-        "Histórico de crédito"
+        "Extrato bancário com a data de inclusão",
+        "Histórico de crédito",
+        "Mensagens e e-mails, se houver",
+        "CNPJ da matriz do fornecedor"
       ],
       "disclaimer": "Esta orientação tem caráter informativo."
     },

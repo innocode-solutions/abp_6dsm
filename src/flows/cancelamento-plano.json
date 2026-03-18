@@ -10,7 +10,8 @@
     "cancelar internet",
     "cancelar telefone",
     "cancelar academia",
-    "cancelar assinatura"
+    "cancelar assinatura",
+    "não estão cancelando meu plano"
   ],
   "steps": [
     {
@@ -83,8 +84,8 @@
   ],
   "responses": {
     "cancelamento_imediato": {
-      "summary": "O consumidor pode buscar o cancelamento do serviço sem entraves indevidos.",
-      "message": "Você pode procurar o PROCON para solicitar o cancelamento imediato do serviço, a suspensão das cobranças e outras medidas caso a empresa persista na recusa do cancelamento.",
+      "summary": "O consumidor pode buscar o cancelamento imediato do serviço.",
+      "message": "De acordo com as orientações do PROCON, o consumidor pode abrir reclamação requerendo o cancelamento imediato do serviço, sem entraves indevidos. Também pode exigir a suspensão das cobranças e buscar medidas administrativas ou judiciais caso a empresa persista na recusa.",
       "recommendations": [
         "Solicitar cancelamento imediato do serviço",
         "Solicitar suspensão das cobranças",
@@ -93,16 +94,16 @@
       "documents": [
         "RG com CPF",
         "Contrato",
-        "Comprovantes de pagamento",
-        "Mensagens e e-mails",
-        "Número de protocolo do pedido de cancelamento",
+        "Comprovantes de pagamentos",
+        "Mensagens e e-mails, se houver",
+        "Número de protocolo requerendo o cancelamento",
         "CNPJ da matriz do fornecedor"
       ],
-      "disclaimer": "Esta resposta tem caráter orientativo e não substitui o atendimento formal do PROCON."
+      "disclaimer": "Os casos podem ter variações. Esta orientação é inicial e não substitui o atendimento formal do PROCON."
     },
     "cancelamento_com_fidelidade": {
       "summary": "O cancelamento pode envolver análise de multa por fidelidade.",
-      "message": "O consumidor pode buscar o cancelamento do serviço, mas o caso pode envolver cláusula de fidelidade ou multa por quebra contratual. Nessas situações, pode ser necessário comparecimento presencial no PROCON para análise mais detalhada.",
+      "message": "O PROCON pode orientar o cancelamento, mas o caso pode envolver multa por quebra de contrato ou fidelidade. Nessas situações, pode ser necessário comparecimento presencial para análise detalhada do contrato.",
       "recommendations": [
         "Solicitar o cancelamento",
         "Reunir contrato e comprovantes",
@@ -111,16 +112,16 @@
       "documents": [
         "RG com CPF",
         "Contrato",
-        "Comprovantes de pagamento",
-        "Mensagens e e-mails",
-        "Número de protocolo do pedido de cancelamento",
+        "Comprovantes de pagamentos",
+        "Mensagens e e-mails, se houver",
+        "Número de protocolo requerendo o cancelamento",
         "CNPJ da matriz do fornecedor"
       ],
       "disclaimer": "A validade de eventual multa depende da análise do contrato e do caso concreto."
     },
     "orientar_tentar_cancelamento": {
-      "summary": "É importante solicitar primeiro o cancelamento diretamente à empresa.",
-      "message": "Antes de registrar reclamação, é recomendável solicitar formalmente o cancelamento à empresa e guardar o número de protocolo, e-mails ou mensagens da solicitação.",
+      "summary": "É importante solicitar primeiro o cancelamento à empresa.",
+      "message": "Antes de registrar reclamação, o ideal é solicitar formalmente o cancelamento à empresa e guardar protocolo, mensagens ou e-mails dessa solicitação.",
       "recommendations": [
         "Solicitar formalmente o cancelamento",
         "Guardar protocolo, e-mails ou mensagens",
@@ -129,8 +130,8 @@
       "disclaimer": "Se houver dificuldade ou recusa indevida, o consumidor pode procurar o PROCON."
     },
     "orientar_contrato": {
-      "summary": "É importante verificar se existe cláusula de fidelidade no contrato.",
-      "message": "Para avaliar corretamente o cancelamento, é importante verificar o contrato e identificar se existe cláusula de fidelidade ou multa por cancelamento antecipado.",
+      "summary": "É importante verificar o contrato antes de prosseguir.",
+      "message": "Para avaliar corretamente o cancelamento, é importante verificar se existe cláusula de fidelidade ou multa por cancelamento antecipado.",
       "recommendations": [
         "Revisar o contrato",
         "Separar comprovantes e protocolos",
@@ -139,8 +140,8 @@
       "documents": [
         "RG com CPF",
         "Contrato",
-        "Comprovantes de pagamento",
-        "Mensagens e e-mails",
+        "Comprovantes de pagamentos",
+        "Mensagens e e-mails, se houver",
         "Número de protocolo",
         "CNPJ da matriz do fornecedor"
       ],

@@ -1,14 +1,15 @@
 {
   "id": "direito_arrependimento",
   "title": "Direito de arrependimento",
-  "description": "Fluxo para orientar consumidores sobre a possibilidade de desistir de uma compra.",
+  "description": "Fluxo para orientar consumidores sobre a possibilidade de desistir de uma compra realizada fora do estabelecimento comercial.",
   "triggers": [
     "quero cancelar compra",
     "direito de arrependimento",
     "posso desistir da compra",
     "cancelar compra online",
     "compra pela internet posso cancelar",
-    "desistir da compra"
+    "desistir da compra",
+    "arrepender da compra"
   ],
   "steps": [
     {
@@ -19,17 +20,27 @@
         { "label": "Internet / loja online", "value": "online" },
         { "label": "Telefone", "value": "telefone" },
         { "label": "Aplicativo", "value": "app" },
+        { "label": "Em domicílio", "value": "domicilio" },
         { "label": "Loja física", "value": "loja" }
       ]
     },
     {
       "id": "dias_compra",
-      "question": "Quantos dias se passaram desde a compra ou recebimento do produto?",
+      "question": "Quantos dias se passaram desde a assinatura ou o recebimento do produto/serviço?",
       "type": "choice",
       "options": [
         { "label": "Até 7 dias", "value": "ate7" },
         { "label": "Mais de 7 dias", "value": "mais7" },
         { "label": "Não sei informar", "value": "nao_sei" }
+      ]
+    },
+    {
+      "id": "usou_produto",
+      "question": "Você chegou a abrir a embalagem ou testar o produto?",
+      "type": "choice",
+      "options": [
+        { "label": "Sim", "value": "sim" },
+        { "label": "Não", "value": "nao" }
       ]
     }
   ],
@@ -57,6 +68,13 @@
     },
     {
       "conditions": {
+        "tipo_compra": "domicilio",
+        "dias_compra": "ate7"
+      },
+      "response": "direito_aplicavel"
+    },
+    {
+      "conditions": {
         "tipo_compra": "loja"
       },
       "response": "nao_se_aplica"
@@ -66,28 +84,49 @@
         "dias_compra": "mais7"
       },
       "response": "prazo_expirado"
+    },
+    {
+      "conditions": {
+        "dias_compra": "nao_sei"
+      },
+      "response": "orientar_confirmar_prazo"
     }
   ],
   "responses": {
     "direito_aplicavel": {
       "summary": "O direito de arrependimento pode se aplicar ao seu caso.",
-      "message": "De acordo com o Código de Defesa do Consumidor (Art. 49), compras realizadas fora do estabelecimento comercial, como pela internet, telefone ou aplicativos, podem ser canceladas no prazo de até 7 dias após a contratação ou recebimento do produto.",
+      "message": "De acordo com o Art. 49 do CDC e com as orientações do PROCON, o consumidor pode desistir da compra no prazo de até 7 dias quando a contratação ocorreu fora do estabelecimento comercial, como pela internet, telefone, aplicativo ou em domicílio.",
       "recommendations": [
-        "Solicitar o cancelamento da compra ao fornecedor",
-        "Registrar a solicitação por escrito (e-mail ou mensagem)",
+        "Solicitar o cancelamento ao fornecedor dentro do prazo de 7 dias",
+        "Registrar a solicitação por escrito, se possível",
         "Guardar comprovantes da comunicação"
       ],
-      "disclaimer": "Esta orientação tem caráter informativo e não substitui atendimento presencial do PROCON."
+      "documents": [
+        "Comprovante da compra",
+        "Fatura, extrato ou comprovante de pagamento",
+        "Mensagens, e-mails ou protocolo do pedido de cancelamento"
+      ],
+      "disclaimer": "Segundo o material do PROCON, a empresa deve arcar com o frete de devolução e devolver os valores pagos. O consumidor pode testar o produto com cautela, sem mau uso."
     },
     "prazo_expirado": {
       "summary": "O prazo de arrependimento pode ter expirado.",
-      "message": "O direito de arrependimento previsto no Art. 49 do Código de Defesa do Consumidor pode ser exercido em até 7 dias após a contratação ou recebimento do produto.",
-      "disclaimer": "Mesmo assim, você pode procurar o PROCON para verificar outras possibilidades de solução."
+      "message": "O direito de arrependimento previsto no Art. 49 do CDC pode ser exercido em até 7 dias contados da assinatura ou do recebimento do produto ou serviço.",
+      "disclaimer": "Mesmo assim, o consumidor pode procurar o PROCON para verificar outras possibilidades de solução."
     },
     "nao_se_aplica": {
-      "summary": "O direito de arrependimento geralmente não se aplica a compras em loja física.",
-      "message": "O direito de arrependimento previsto no Código de Defesa do Consumidor se aplica a compras realizadas fora do estabelecimento comercial, como internet ou telefone.",
-      "disclaimer": "Algumas lojas podem oferecer política própria de troca ou cancelamento."
+      "summary": "O direito de arrependimento não se aplica, em regra, a compras em loja física.",
+      "message": "Segundo o material do PROCON, o direito de arrependimento vale para compras realizadas fora do estabelecimento comercial. Em compras presenciais, a troca ou o cancelamento sem defeito não são obrigatórios, salvo política própria da loja.",
+      "disclaimer": "O chatbot fornece apenas orientação inicial."
+    },
+    "orientar_confirmar_prazo": {
+      "summary": "É importante confirmar o prazo da compra ou do recebimento.",
+      "message": "Para verificar se o direito de arrependimento se aplica, confirme a data da assinatura ou do recebimento do produto/serviço.",
+      "documents": [
+        "Comprovante da compra",
+        "Fatura, extrato ou comprovante de pagamento",
+        "Mensagens, e-mails ou protocolo"
+      ],
+      "disclaimer": "Se necessário, procure o PROCON para orientação detalhada."
     },
     "fallback": {
       "summary": "Não foi possível determinar a situação.",

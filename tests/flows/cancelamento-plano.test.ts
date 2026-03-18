@@ -18,17 +18,20 @@ describe("Fluxo cancelamento de plano", () => {
 
     const response = flow.responses[rule!.response as keyof typeof flow.responses];
 
-    expect(response.summary).toContain("cancelamento");
+    expect(response.summary).toContain("cancelamento imediato");
     expect("recommendations" in response).toBe(true);
 
     if ("recommendations" in response) {
       expect(response.recommendations).toContain(
         "Solicitar cancelamento imediato do serviço"
       );
+      expect(response.recommendations).toContain(
+        "Solicitar suspensão das cobranças"
+      );
     }
   });
 
-  it("deve orientar análise da multa quando houver fidelidade", () => {
+  it("deve orientar análise de fidelidade quando houver multa contratual", () => {
     const answers = {
       tentou_cancelar: "sim",
       tem_fidelidade: "sim"
