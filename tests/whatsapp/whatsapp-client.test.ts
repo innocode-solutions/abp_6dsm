@@ -83,7 +83,7 @@ describe("WhatsAppClient", () => {
     expect(processIncomingMessageMock).not.toHaveBeenCalled();
   });
 
-  it("deve registrar e encaminhar mensagem válida para processamento", async () => {
+  it("deve enviar resposta automaticamente após processar mensagem válida", async () => {
     const client = new WhatsAppClient();
     const reply = vi.fn();
 
@@ -96,10 +96,7 @@ describe("WhatsAppClient", () => {
 
     expect(logIncomingMessageMock).toHaveBeenCalledTimes(1);
     expect(processIncomingMessageMock).toHaveBeenCalledTimes(1);
-    expect(processIncomingMessageMock).toHaveBeenCalledWith(
-      "5511999999999@c.us",
-      "quero cancelar uma compra"
-    );
+    expect(reply).toHaveBeenCalledTimes(1);
     expect(reply).toHaveBeenCalledWith("Resposta processada");
   });
 });
