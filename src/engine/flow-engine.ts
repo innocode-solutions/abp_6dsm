@@ -61,7 +61,9 @@ export class FlowEngine {
       };
     }
 
-    session.answers[currentStep.id] = answer;
+    // Normaliza a resposta do usuário (ex: "1" → value da opção)
+    const normalizedAnswer = this.normalizeAnswer(currentStep, answer);
+    session.answers[currentStep.id] = normalizedAnswer;
 
     const matchedRule = this.findMatchingRule(flow.rules, session.answers);
 
@@ -101,6 +103,38 @@ export class FlowEngine {
       type: "step",
       step: nextStep
     };
+  }
+
+  private normalizeAnswer(step: FlowStep, answer: string): string {
+    const normalized = answer.trim().toLowerCase();
+
+    if (step.type !== "choice" || !step.options?.length) {
+      return normalized;
+    }
+
+    // Caso usuário responda com número (1, 2, 3...)
+    const numericOption = Number(normalized);
+
+    if (
+      !Number.isNaN(numericOption) &&
+      numericOption >= 1 &&
+      numericOption <= step.options.length
+    ) {
+      return step.options[numericOption - 1].value;
+    }
+
+    // Caso responda com texto (label ou value)
+    const matchedOption = step.options.find(
+      (option) =>
+        option.value.toLowerCase() === normalized ||
+        option.label.toLowerCase() === normalized
+    );
+
+    if (matchedOption) {
+      return matchedOption.value;
+    }
+
+    return normalized;
   }
 
   private findMatchingRule(
