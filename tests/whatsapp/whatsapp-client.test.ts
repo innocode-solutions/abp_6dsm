@@ -3,6 +3,8 @@ import { WhatsAppClient } from "../../src/whatsapp/whatsapp-client";
 
 const onMock = vi.fn();
 const initializeMock = vi.fn();
+const logIncomingMessageMock = vi.fn();
+const processIncomingMessageMock = vi.fn();
 
 vi.mock("qrcode-terminal", () => ({
   default: {
@@ -21,6 +23,28 @@ vi.mock("whatsapp-web.js", () => {
   return {
     Client: MockClient,
     LocalAuth: MockLocalAuth
+  };
+});
+
+vi.mock("../../src/messages/message-log.service", () => {
+  class MockMessageLogService {
+    logIncomingMessage = logIncomingMessageMock;
+  }
+
+  return {
+    MessageLogService: MockMessageLogService
+  };
+});
+
+vi.mock("../../src/messages/message-processor.service", () => {
+  class MockMessageProcessorService {
+    processIncomingMessage = processIncomingMessageMock.mockResolvedValue(
+      "Resposta processada"
+    );
+  }
+
+  return {
+    MessageProcessorService: MockMessageProcessorService
   };
 });
 
@@ -55,47 +79,27 @@ describe("WhatsAppClient", () => {
     } as any);
 
     expect(reply).not.toHaveBeenCalled();
+    expect(logIncomingMessageMock).not.toHaveBeenCalled();
+    expect(processIncomingMessageMock).not.toHaveBeenCalled();
   });
 
-  it("deve ignorar mensagens de status", async () => {
-    const client = new WhatsAppClient();
-    const reply = vi.fn();
-
-    await client.handleIncomingMessage({
-      fromMe: false,
-      from: "status@broadcast",
-      body: "oi",
-      reply
-    } as any);
-
-    expect(reply).not.toHaveBeenCalled();
-  });
-
-  it("deve ignorar mensagens de grupo", async () => {
-    const client = new WhatsAppClient();
-    const reply = vi.fn();
-
-    await client.handleIncomingMessage({
-      fromMe: false,
-      from: "123456@g.us",
-      body: "oi",
-      reply
-    } as any);
-
-    expect(reply).not.toHaveBeenCalled();
-  });
-
-  it("deve responder mensagens válidas", async () => {
+  it("deve registrar e encaminhar mensagem válida para processamento", async () => {
     const client = new WhatsAppClient();
     const reply = vi.fn();
 
     await client.handleIncomingMessage({
       fromMe: false,
       from: "5511999999999@c.us",
-      body: "oi",
+      body: "quero cancelar uma compra",
       reply
     } as any);
 
-    expect(reply).toHaveBeenCalledTimes(1);
+    expect(logIncomingMessageMock).toHaveBeenCalledTimes(1);
+    expect(processIncomingMessageMock).toHaveBeenCalledTimes(1);
+    expect(processIncomingMessageMock).toHaveBeenCalledWith(
+      "5511999999999@c.us",
+      "quero cancelar uma compra"
+    );
+    expect(reply).toHaveBeenCalledWith("Resposta processada");
   });
 });

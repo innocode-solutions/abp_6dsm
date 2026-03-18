@@ -1,8 +1,12 @@
 import qrcode from "qrcode-terminal";
 import { Client, LocalAuth, Message } from "whatsapp-web.js";
+import { MessageLogService } from "../messages/message-log.service";
+import { MessageProcessorService } from "../messages/message-processor.service";
 
 export class WhatsAppClient {
   private client: Client;
+  private messageLogService: MessageLogService;
+  private messageProcessorService: MessageProcessorService;
 
   constructor() {
     this.client = new Client({
@@ -14,6 +18,9 @@ export class WhatsAppClient {
         args: ["--no-sandbox", "--disable-setuid-sandbox"]
       }
     });
+
+    this.messageLogService = new MessageLogService();
+    this.messageProcessorService = new MessageProcessorService();
 
     this.registerEvents();
   }
@@ -50,11 +57,18 @@ export class WhatsAppClient {
     if (message.from === "status@broadcast") return;
     if (message.from.endsWith("@g.us")) return;
 
-    console.log(`Mensagem recebida de ${message.from}: ${message.body}`);
+    this.messageLogService.logIncomingMessage({
+      from: message.from,
+      body: message.body,
+      timestamp: new Date().toISOString()
+    });
 
-    await message.reply(
-      "Olá! Sou o ProconBot Jacareí. Em breve vou te ajudar com orientações sobre direitos do consumidor."
+    const response = await this.messageProcessorService.processIncomingMessage(
+      message.from,
+      message.body
     );
+
+    await message.reply(response);
   }
 
   async initialize(): Promise<void> {
