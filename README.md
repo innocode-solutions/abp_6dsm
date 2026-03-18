@@ -63,38 +63,40 @@ Auxiliar cidadãos a entender seus direitos e os próximos passos para resolver 
 
 <h1 align="center">Product Backlog</h1>
 
-| ID   | User Story                                       | Prioridade | Story Points |
-|------|--------------------------------------------------|:----------:|:------------:|
-| US01 | Integrar chatbot ao WhatsApp                     | P0 | 5 |
-| US02 | Receber mensagens de usuários                    | P0 | 3 |
-| US03 | Enviar respostas ao usuário                      | P0 | 3 |
-| US04 | Gerenciar sessões de conversa                    | P0 | 3 |
-| US05 | Criar motor de fluxo decisório                   | P0 | 5 |
-| US06 | Implementar fluxo de cobrança indevida           | P0 | 3 |
-| US07 | Implementar fluxo de empréstimo não reconhecido  | P0 | 3 |
-| US08 | Implementar fluxo de direito de arrependimento   | P0 | 3 |
-| US09 | Implementar fluxo de cancelamento de plano       | P1 | 3 |
-| US10 | Implementar fluxo de garantia de produto         | P1 | 3 |
-| US11 | Persistir histórico de mensagens                 | P0 | 3 |
-| US12 | Estruturar base FAQ do PROCON                    | P0 | 3 |
-| US13 | Implementar ingestão do CDC PDF                  | P1 | 5 |
-| US14 | Realizar chunking do CDC                         | P1 | 3 |
-| US15 | Gerar embeddings da base de conhecimento         | P1 | 5 |
-| US16 | Implementar busca semântica (RAG)                | P1 | 5 |
-| US17 | Classificar intenção da mensagem                 | P1 | 5 |
-| US18 | Extrair entidades relevantes                     | P2 | 3 |
-| US19 | Integrar LLM para resposta final                 | P1 | 3 |
-| US20 | Implementar logs de auditoria                    | P1 | 3 |
-| US21 | Criar deploy em nuvem                            | P0 | 5 |
-| US22 | Criar container Docker                           | P1 | 3 |
-| US23 | Criar pipeline CI/CD                             | P2 | 3 |
-| US24 | Implementar fallback para atendimento presencial | P1 | 2 |
-| US25 | Adicionar aviso de uso de IA                     | P1 | 1 |
-| US26 | Criar dashboard simples de métricas              | P2 | 5 |
-| US27 | Implementar monitoramento e logs                 | P2 | 3 |
-| US28 | Criar testes básicos                             | P2 | 3 |
-| US29 | Documentar arquitetura                           | P2 | 2 |
-| US30 | Criar documentação de uso                        | P2 | 2 |
+| ID   | Req. | User Story                                       | Prioridade | Story Points |
+|------|------|--------------------------------------------------|:----------:|:------------:|
+| US01 | RF01 | Integrar chatbot ao WhatsApp                     | P0 | 5 |
+| US02 | RF01 | Receber mensagens de usuários                    | P0 | 3 |
+| US03 | RF01, RF04 | Enviar respostas ao usuário                | P0 | 3 |
+| US04 | RF03 | Gerenciar sessões de conversa                    | P0 | 3 |
+| US05 | RF02, RF03 | Criar motor de fluxo decisório            | P0 | 5 |
+| US06 | RF02, RF03, RF04 | Implementar fluxo de cobrança indevida | P0 | 3 |
+| US07 | RF02, RF03, RF04 | Implementar fluxo de empréstimo não reconhecido | P0 | 3 |
+| US08 | RF02, RF03, RF04 | Implementar fluxo de direito de arrependimento | P0 | 3 |
+| US09 | RF02, RF03, RF04 | Implementar fluxo de cancelamento de plano | P1 | 3 |
+| US10 | RF02, RF03, RF04 | Implementar fluxo de garantia de produto | P1 | 3 |
+| US11 | RF06 | Persistir histórico de mensagens                 | P0 | 3 |
+| US12 | RF02, RF03 | Estruturar base FAQ do PROCON              | P0 | 3 |
+| US13 | RF05 | Implementar ingestão do CDC PDF                  | P1 | 5 |
+| US14 | RF05 | Realizar chunking do CDC                         | P1 | 3 |
+| US15 | RF05 | Gerar embeddings da base de conhecimento         | P1 | 5 |
+| US16 | RF05 | Implementar busca semântica (RAG)                | P1 | 5 |
+| US17 | RF02, RF03 | Classificar intenção da mensagem           | P1 | 5 |
+| US18 | RF03 | Extrair entidades relevantes                     | P2 | 3 |
+| US19 | RF05, RNF05 | Integrar LLM para resposta final          | P1 | 3 |
+| US20 | RF06 | Implementar logs de auditoria                    | P1 | 3 |
+| US21 | RNF02 | Criar deploy em nuvem                           | P0 | 5 |
+| US22 | RNF02 | Criar container Docker                          | P1 | 3 |
+| US23 | RNF02 | Criar pipeline CI/CD                            | P2 | 3 |
+| US24 | RF04, RNF04 | Implementar fallback para atendimento presencial | P1 | 2 |
+| US25 | RNF04, RNF05 | Adicionar aviso de uso de IA             | P1 | 1 |
+| US26 | RF06 | Criar dashboard simples de métricas              | P2 | 5 |
+| US27 | RNF02 | Implementar monitoramento e logs                | P2 | 3 |
+| US28 | RNF02 | Criar testes básicos                            | P2 | 3 |
+| US29 | RNF01, RNF03 | Documentar arquitetura                   | P2 | 2 |
+| US30 | RNF01 | Criar documentação de uso                       | P2 | 2 |
+| US31 | RNF02, RNF03 | Configurar banco de dados                | P0 | 5 |
+| US32 | RF03, RF06 | Persistir sessões no banco                 | P0 | 3 |
 
 ---
 
@@ -110,39 +112,41 @@ Implementar a comunicação via WhatsApp e os primeiros fluxos de atendimento do
 
 **Backlog da Sprint:**
 
-| ID | User Story | Pontos |
-|----|------------|-------|
-| US01 | Integrar chatbot ao WhatsApp | 5 |
-| US02 | Receber mensagens de usuários | 3 |
-| US03 | Enviar respostas ao usuário | 3 |
-| US04 | Gerenciar sessões de conversa | 3 |
-| US05 | Criar motor de fluxo decisório | 5 |
-| US06 | Fluxo cobrança indevida | 3 |
-| US07 | Fluxo empréstimo não reconhecido | 3 |
-| US08 | Fluxo direito de arrependimento | 3 |
-| US09 | Fluxo cancelamento de plano | 3 |
-| US11 | Persistir histórico de mensagens | 3 |
+| ID | Req. | User Story | Pontos |
+|----|------|------------|-------|
+| US01 | RF01 | Integrar chatbot ao WhatsApp | 5 |
+| US02 | RF01 | Receber mensagens de usuários | 3 |
+| US03 | RF01, RF04 | Enviar respostas ao usuário | 3 |
+| US04 | RF03 | Gerenciar sessões de conversa | 3 |
+| US05 | RF02, RF03 | Criar motor de fluxo decisório | 5 |
+| US06 | RF02, RF03, RF04 | Fluxo cobrança indevida | 3 |
+| US07 | RF02, RF03, RF04 | Fluxo empréstimo não reconhecido | 3 |
+| US08 | RF02, RF03, RF04 | Fluxo direito de arrependimento | 3 |
+| US09 | RF02, RF03, RF04 | Fluxo cancelamento de plano | 3 |
 
 </details>
 
 <details>
-<summary><h3>Sprint 2 — Inteligência (PLN + RAG)</h3></summary>
+<summary><h3>Sprint 2 — Inteligência + Persistência</h3></summary>
 
 **Objetivo:**  
-Implementar a base de conhecimento e a capacidade de interpretar perguntas livres.
+Implementar base de conhecimento, interpretação de linguagem e persistência de dados.
 
 **Backlog da Sprint:**
 
-| ID | User Story | Pontos |
-|----|------------|-------|
-| US10 | Fluxo garantia de produto | 3 |
-| US12 | Estruturar base FAQ | 3 |
-| US13 | Ingestão CDC PDF | 5 |
-| US14 | Chunking CDC | 3 |
-| US15 | Gerar embeddings | 5 |
-| US16 | Implementar busca semântica (RAG) | 5 |
-| US17 | Classificar intenção | 5 |
-| US18 | Extrair entidades | 3 |
+| ID | Req. | User Story | Pontos |
+|----|------|------------|-------|
+| US10 | RF02, RF03, RF04 | Fluxo garantia de produto | 3 |
+| US11 | RF06 | Persistir histórico de mensagens | 3 |
+| US12 | RF02, RF03 | Estruturar base FAQ | 3 |
+| US13 | RF05 | Ingestão CDC PDF | 5 |
+| US14 | RF05 | Chunking CDC | 3 |
+| US15 | RF05 | Gerar embeddings | 5 |
+| US16 | RF05 | Implementar busca semântica (RAG) | 5 |
+| US17 | RF02, RF03 | Classificar intenção | 5 |
+| US18 | RF03 | Extrair entidades | 3 |
+| US31 | RNF02, RNF03 | Configurar banco de dados | 5 |
+| US32 | RF03, RF06 | Persistir sessões no banco | 3 |
 
 </details>
 
@@ -154,22 +158,23 @@ Realizar deploy em nuvem, implementar observabilidade, governança e documentaç
 
 **Backlog da Sprint:**
 
-| ID | User Story | Pontos |
-|----|------------|-------|
-| US19 | Integrar LLM para resposta final | 3 |
-| US20 | Logs auditoria | 3 |
-| US21 | Deploy em nuvem | 5 |
-| US22 | Container Docker | 3 |
-| US23 | Pipeline CI/CD | 3 |
-| US24 | Fallback atendimento presencial | 2 |
-| US25 | Aviso uso IA | 1 |
-| US26 | Dashboard métricas | 5 |
-| US27 | Monitoramento | 3 |
-| US28 | Testes | 3 |
-| US29 | Documentação arquitetura | 2 |
-| US30 | Documentação uso | 2 |
+| ID | Req. | User Story | Pontos |
+|----|------|------------|-------|
+| US19 | RF05, RNF05 | Integrar LLM para resposta final | 3 |
+| US20 | RF06 | Logs auditoria | 3 |
+| US21 | RNF02 | Deploy em nuvem | 5 |
+| US22 | RNF02 | Container Docker | 3 |
+| US23 | RNF02 | Pipeline CI/CD | 3 |
+| US24 | RF04, RNF04 | Fallback atendimento presencial | 2 |
+| US25 | RNF04, RNF05 | Aviso uso IA | 1 |
+| US26 | RF06 | Dashboard métricas | 5 |
+| US27 | RNF02 | Monitoramento | 3 |
+| US28 | RNF02 | Testes | 3 |
+| US29 | RNF01, RNF03 | Documentação arquitetura | 2 |
+| US30 | RNF01 | Documentação uso | 2 |
 
 </details>
+
 <span id="equipe"></span>
 
 <h1 align="center">Equipe</h1> <div align="center">
