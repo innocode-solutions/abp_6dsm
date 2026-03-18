@@ -1,0 +1,107 @@
+{
+  "id": "cobranca_indevida",
+  "title": "Cobrança indevida",
+  "description": "Fluxo para orientar consumidores que identificaram cobrança indevida ou serviço não reconhecido.",
+  "triggers": [
+    "cobrança indevida",
+    "estão me cobrando algo que não reconheço",
+    "cobrança que não reconheço",
+    "valor cobrado indevidamente",
+    "serviço que eu não contratei",
+    "cobrança errada"
+  ],
+  "steps": [
+    {
+      "id": "reconhece_cobranca",
+      "question": "Você reconhece essa cobrança?",
+      "type": "choice",
+      "options": [
+        { "label": "Sim", "value": "sim" },
+        { "label": "Não", "value": "nao" },
+        { "label": "Não sei", "value": "nao_sei" }
+      ]
+    },
+    {
+      "id": "onde_cobranca",
+      "question": "Onde essa cobrança apareceu?",
+      "type": "choice",
+      "options": [
+        { "label": "Fatura do cartão", "value": "cartao" },
+        { "label": "Conta bancária", "value": "banco" },
+        { "label": "Boleto ou cobrança direta", "value": "boleto" },
+        { "label": "Outro", "value": "outro" }
+      ]
+    },
+    {
+      "id": "tem_comprovantes",
+      "question": "Você possui fatura, extrato ou comprovantes dessa cobrança?",
+      "type": "choice",
+      "options": [
+        { "label": "Sim", "value": "sim" },
+        { "label": "Não", "value": "nao" }
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "conditions": {
+        "reconhece_cobranca": "nao"
+      },
+      "response": "contestacao_cobranca"
+    },
+    {
+      "conditions": {
+        "reconhece_cobranca": "sim"
+      },
+      "response": "caso_nao_aplicavel"
+    },
+    {
+      "conditions": {
+        "reconhece_cobranca": "nao_sei"
+      },
+      "response": "orientar_documentos"
+    }
+  ],
+  "responses": {
+    "contestacao_cobranca": {
+      "summary": "Pode se tratar de cobrança indevida.",
+      "message": "Você pode procurar o PROCON para contestar a cobrança, solicitar o cancelamento, pedir a suspensão de novas cobranças indevidas e apresentar os comprovantes relacionados ao caso.",
+      "recommendations": [
+        "Solicitar cancelamento da cobrança",
+        "Solicitar suspensão de novas cobranças indevidas",
+        "Guardar provas da cobrança e do contato com a empresa"
+      ],
+      "documents": [
+        "RG com CPF",
+        "Fatura, extrato bancário ou boleto com a cobrança",
+        "Comprovantes de pagamento, se houver",
+        "Mensagens, e-mails ou protocolos de atendimento",
+        "Contrato, se houver",
+        "CNPJ da matriz do fornecedor"
+      ],
+      "disclaimer": "Esta orientação é inicial e não substitui o atendimento formal do PROCON."
+    },
+    "caso_nao_aplicavel": {
+      "summary": "A cobrança foi reconhecida pelo consumidor.",
+      "message": "Este fluxo é voltado para casos de cobrança indevida ou não reconhecida. Se a cobrança foi reconhecida, pode ser necessário avaliar outro tipo de problema, como cancelamento, revisão contratual ou cobrança abusiva.",
+      "disclaimer": "O chatbot fornece apenas orientação inicial."
+    },
+    "orientar_documentos": {
+      "summary": "É importante reunir documentos antes de prosseguir.",
+      "message": "Se você ainda não sabe se reconhece a cobrança, o ideal é reunir faturas, extratos, comprovantes e registros de atendimento para análise do caso.",
+      "documents": [
+        "RG com CPF",
+        "Fatura, extrato bancário ou boleto com a cobrança",
+        "Comprovantes de pagamento, se houver",
+        "Mensagens, e-mails ou protocolos",
+        "Contrato, se houver"
+      ],
+      "disclaimer": "Esta orientação tem caráter informativo."
+    },
+    "fallback": {
+      "summary": "Não foi possível identificar a situação com segurança.",
+      "message": "Recomendamos procurar atendimento presencial no PROCON para análise detalhada do caso.",
+      "disclaimer": "O chatbot fornece apenas orientação inicial."
+    }
+  }
+}
