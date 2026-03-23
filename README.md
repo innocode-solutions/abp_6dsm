@@ -208,8 +208,8 @@ Realizar deploy em nuvem, implementar observabilidade, governança, documentaç�
  
 ```mermaid
 flowchart TD
-    A[Usuário envia mensagem no WhatsApp] --> B[whatsapp-web.js captura mensagem]
-    B --> C[Backend em Node.js / TypeScript]
+    A[Usuário envia mensagem] --> B[MessagingProvider captura mensagem]
+    B --> C[ProconBot Orquestrador]
     C --> D[Gerenciador de sessão]
 
     D --> E[Classificador de intenção]
@@ -281,17 +281,17 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    U[Usuário] --> W[WhatsApp]
-    W --> WWJ[whatsapp-web.js]
+    U[Usuário] --> M[Canal de Mensagem]
+    M --> Prov[MessagingProvider - ex: WhatsApp]
 
-    WWJ --> API[Backend Node.js + TypeScript]
+    Prov --> BOT[ProconBot Core]
 
-    API --> SES[Gerenciador de Sessão]
-    API --> DEC[Motor de Fluxo]
-    API --> PLN[Serviço de PLN]
-    API --> RAG[Serviço de RAG]
-    API --> LLM[Serviço de LLM]
-    API --> AUD[Logs e Auditoria]
+    BOT --> SES[Gerenciador de Sessão]
+    BOT --> DEC[Motor de Fluxo]
+    BOT --> PLN[Serviço de PLN]
+    BOT --> RAG[Serviço de RAG]
+    BOT --> LLM[Serviço de LLM]
+    BOT --> AUD[Logs e Auditoria]
 
     PLN --> INT[Classificação de intenção]
     PLN --> ENT[Extração de entidades]
