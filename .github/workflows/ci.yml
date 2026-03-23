@@ -11,10 +11,15 @@ on:
       - main
       - develop
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
+# Evita que múltiplas execuções da mesma branch rodem ao mesmo tempo
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
+jobs:
+  quality:
+    name: Code Quality & Security
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout do repositório
         uses: actions/checkout@v4
@@ -28,5 +33,48 @@ jobs:
       - name: Instalar dependências
         run: npm ci
 
-      - name: Rodar testes
+      - name: Checagem de tipos (TypeScript)
+        run: npm run typecheck
+
+      - name: Auditoria de segurança (npm audit)
+        run: npm audit --audit-level=high || true # Registra falhas graves mas não trava o repo se quiserem ignorar
+
+  test:
+    name: Unit Testing
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Rodar testes unitários (Vitest)
         run: npm run test:run
+
+  build:
+    name: Build Check
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Validar Build do Projeto
+        run: npm run build
