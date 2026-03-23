@@ -1,15 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { bootstrap } from "../../src/server";
 
-const initializeMock = vi.fn();
+const startMock = vi.fn();
 
-vi.mock("../../src/whatsapp/whatsapp-client", () => {
-  class MockWhatsAppClient {
-    initialize = initializeMock;
+vi.mock("../../src/bot/bot", () => {
+  class MockProconBot {
+    start = startMock;
   }
 
   return {
-    WhatsAppClient: MockWhatsAppClient
+    ProconBot: MockProconBot
+  };
+});
+
+vi.mock("../../src/whatsapp/whatsapp-provider", () => {
+  class MockWhatsAppProvider {}
+
+  return {
+    WhatsAppProvider: MockWhatsAppProvider
   };
 });
 
@@ -19,9 +27,9 @@ describe("server bootstrap", () => {
     process.env.NODE_ENV = "test";
   });
 
-  it("deve inicializar o cliente do WhatsApp", async () => {
+  it("deve inicializar o bot", async () => {
     await bootstrap();
 
-    expect(initializeMock).toHaveBeenCalledTimes(1);
+    expect(startMock).toHaveBeenCalledTimes(1);
   });
 });
