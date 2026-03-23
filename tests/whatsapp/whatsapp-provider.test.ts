@@ -47,7 +47,7 @@ describe("WhatsAppProvider", () => {
 
     // Capturando o callback registrado no 'message'
     const messageCall = onMock.mock.calls.find(call => call[0] === "message");
-    const messageCallback = messageCall[1];
+    const messageCallback = messageCall![1];
 
     const mockMessage = {
       fromMe: false,
@@ -71,7 +71,7 @@ describe("WhatsAppProvider", () => {
     provider.onMessage(handler);
 
     const messageCall = onMock.mock.calls.find(call => call[0] === "message");
-    const messageCallback = messageCall[1];
+    const messageCallback = messageCall![1];
 
     // Status broadcast
     await messageCallback({ fromMe: false, from: "status@broadcast", body: "oi" });
