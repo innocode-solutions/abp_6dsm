@@ -12,7 +12,9 @@
     "test:run": "vitest run",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "dev": "tsx src/server.ts"
+    "dev": "tsx src/server.ts",
+    "db:ping": "tsx src/database/scripts/ping.ts",
+    "db:seed-sample": "tsx src/database/scripts/seed-sample.ts"
   },
   "repository": {
     "type": "git",
@@ -35,6 +37,8 @@
     "vitest": "^4.1.0"
   },
   "dependencies": {
+    "dotenv": "^16.4.7",
+    "mongoose": "^8.9.5",
     "qrcode-terminal": "^0.12.0",
     "whatsapp-web.js": "^1.34.6"
   }
