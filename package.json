@@ -11,6 +11,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "build": "tsc",
+    "start": "node index.js",
     "typecheck": "tsc --noEmit",
     "dev": "tsx src/server.ts",
     "db:ping": "tsx src/database/scripts/ping.ts",
