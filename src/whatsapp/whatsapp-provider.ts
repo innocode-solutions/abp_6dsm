@@ -7,13 +7,16 @@ export class WhatsAppProvider implements MessagingProvider {
   private onMessageHandler: ((message: IncomingMessage) => Promise<void>) | null = null;
 
   constructor() {
+    const chromePath = process.env.PUPPETEER_EXECUTABLE_PATH?.trim();
+
     this.client = new Client({
       authStrategy: new LocalAuth({
         clientId: "proconbot-jacarei"
       }),
       puppeteer: {
         headless: true,
-        args: ["--no-sandbox", "--disable-setuid-sandbox"]
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        ...(chromePath ? { executablePath: chromePath } : {})
       }
     });
 
