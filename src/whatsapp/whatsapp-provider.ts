@@ -8,11 +8,21 @@ export class WhatsAppProvider implements MessagingProvider {
 
   constructor() {
     const chromePath = process.env.PUPPETEER_EXECUTABLE_PATH?.trim();
+    const phoneNumber = process.env.WHATSAPP_PHONE_NUMBER?.trim();
 
     this.client = new Client({
       authStrategy: new LocalAuth({
         clientId: "proconbot-jacarei"
       }),
+      ...(phoneNumber
+        ? {
+            pairWithPhoneNumber: {
+              phoneNumber,
+              showNotification: true,
+              intervalMs: 180000
+            }
+          }
+        : {}),
       puppeteer: {
         headless: true,
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
@@ -35,6 +45,11 @@ export class WhatsAppProvider implements MessagingProvider {
     this.client.on("qr", (qr: string) => {
       console.log("QR Code recebido. Escaneie com o WhatsApp:");
       qrcode.generate(qr, { small: true });
+    });
+
+    this.client.on("code", (code: string) => {
+      console.log("Codigo de pareamento recebido. Use este codigo no WhatsApp:");
+      console.log(code);
     });
 
     this.client.on("authenticated", () => {

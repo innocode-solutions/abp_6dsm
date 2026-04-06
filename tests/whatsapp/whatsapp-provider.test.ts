@@ -3,6 +3,8 @@ import { WhatsAppProvider } from "../../src/whatsapp/whatsapp-provider";
 
 const onMock = vi.fn();
 const initializeMock = vi.fn();
+const clientMock = vi.fn();
+const localAuthMock = vi.fn();
 
 vi.mock("qrcode-terminal", () => ({
   default: {
@@ -12,11 +14,19 @@ vi.mock("qrcode-terminal", () => ({
 
 vi.mock("whatsapp-web.js", () => {
   class MockClient {
+    constructor(...args: unknown[]) {
+      clientMock(...args);
+    }
+
     on = onMock;
     initialize = initializeMock;
   }
 
-  class MockLocalAuth {}
+  class MockLocalAuth {
+    constructor(...args: unknown[]) {
+      localAuthMock(...args);
+    }
+  }
 
   return {
     Client: MockClient,
@@ -27,6 +37,7 @@ vi.mock("whatsapp-web.js", () => {
 describe("WhatsAppProvider", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.WHATSAPP_PHONE_NUMBER;
   });
 
   it("deve registrar eventos ao instanciar", () => {
@@ -38,6 +49,22 @@ describe("WhatsAppProvider", () => {
     const provider = new WhatsAppProvider();
     await provider.initialize();
     expect(initializeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("deve habilitar pareamento por codigo quando houver numero configurado", () => {
+    process.env.WHATSAPP_PHONE_NUMBER = "5511999999999";
+
+    new WhatsAppProvider();
+
+    expect(clientMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pairWithPhoneNumber: {
+          phoneNumber: "5511999999999",
+          showNotification: true,
+          intervalMs: 180000
+        }
+      })
+    );
   });
 
   it("deve chamar o handler quando receber uma mensagem válida", async () => {
