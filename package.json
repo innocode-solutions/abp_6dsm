@@ -9,7 +9,6 @@
   },
   "scripts": {
     "test": "vitest",
-    "prestart": "npm run build",
     "start": "node dist/src/server.js",
     "test:run": "vitest run",
     "build": "tsc",
