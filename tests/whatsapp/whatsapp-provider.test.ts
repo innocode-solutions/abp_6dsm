@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WhatsAppProvider } from "../../src/whatsapp/whatsapp-provider";
+import qrcode from "qrcode-terminal";
 
 const onMock = vi.fn();
 const initializeMock = vi.fn();
@@ -52,7 +53,7 @@ describe("WhatsAppProvider", () => {
   });
 
   it("deve habilitar pareamento por codigo quando houver numero configurado", () => {
-    process.env.WHATSAPP_PHONE_NUMBER = "5511999999999";
+    process.env.WHATSAPP_PHONE_NUMBER = "+55 (11) 99999-9999";
 
     new WhatsAppProvider();
 
@@ -65,6 +66,19 @@ describe("WhatsAppProvider", () => {
         }
       })
     );
+  });
+
+  it("nao deve renderizar o QR no terminal quando o modo por codigo estiver ativo", () => {
+    process.env.WHATSAPP_PHONE_NUMBER = "5511999999999";
+
+    new WhatsAppProvider();
+
+    const qrCall = onMock.mock.calls.find(call => call[0] === "qr");
+    const qrCallback = qrCall![1];
+
+    qrCallback("conteudo-do-qr");
+
+    expect(qrcode.generate).not.toHaveBeenCalled();
   });
 
   it("deve chamar o handler quando receber uma mensagem válida", async () => {
