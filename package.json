@@ -2,16 +2,17 @@
   "name": "abp_6dsm",
   "version": "1.0.0",
   "description": "<span id=\"topo\"></span>",
-  "main": "index.js",
+  "main": "dist/src/server.js",
   "directories": {
     "doc": "docs",
     "test": "tests"
   },
   "scripts": {
     "test": "vitest",
+    "start": "node dist/src/server.js",
     "test:run": "vitest run",
     "build": "tsc",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
     "dev": "tsx src/server.ts",
     "db:ping": "tsx src/database/scripts/ping.ts",
     "db:seed-sample": "tsx src/database/scripts/seed-sample.ts"
