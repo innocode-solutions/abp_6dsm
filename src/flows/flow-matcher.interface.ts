@@ -1,5 +1,6 @@
-import { FlowDefinition } from "../types/flow";
+import { FlowDefinition, FlowMatcherResult } from "../types/flow";
 
 export interface IFlowMatcher {
-  findByMessage(message: string, flows: FlowDefinition[]): FlowDefinition | null;
+  findByMessage(message: string, flows: FlowDefinition[]): FlowMatcherResult;
 }
+
