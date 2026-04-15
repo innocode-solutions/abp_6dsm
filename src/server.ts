@@ -2,23 +2,12 @@ import "dotenv/config";
 
 import { ProconBot } from "./bot/bot";
 import { connectMongo, isMongoConfigured } from "./database/connection";
-import { MongoHistoryRepository } from "./database/repositories/mongo-history-repository";
-import { FlowEngine } from "./engine/flow-engine";
-import { FlowMatcher } from "./flows/flow-matcher";
-import { MessageLogService } from "./messages/message-log.service";
-import { MessageProcessorService } from "./messages/message-processor.service";
-import { InMemorySessionStore } from "./sessions/in-memory-session-store";
 import { WhatsAppProvider } from "./whatsapp/whatsapp-provider";
-
-import { IHistoryRepository } from "./messages/history";
 
 export async function bootstrap(): Promise<void> {
   try {
-    let historyRepository: IHistoryRepository | undefined;
-
     if (process.env.NODE_ENV !== "test" && isMongoConfigured()) {
       await connectMongo();
-      historyRepository = new MongoHistoryRepository();
     } else if (process.env.NODE_ENV !== "test" && !isMongoConfigured()) {
       console.warn(
         "MONGODB_URI não definido: persistência em MongoDB desabilitada. Defina a variável para ativar."
@@ -26,25 +15,11 @@ export async function bootstrap(): Promise<void> {
     }
 
     const provider = new WhatsAppProvider();
-    const logService = new MessageLogService(historyRepository);
-
-    const flowEngine = new FlowEngine();
-    const flowMatcher = new FlowMatcher();
-    const sessionStore = new InMemorySessionStore();
-
-    const processor = new MessageProcessorService(
-      flowEngine,
-      flowMatcher,
-      sessionStore
-    );
-
-    const bot = new ProconBot(provider, processor, logService);
+    const bot = new ProconBot(provider);
 
     await bot.start();
 
-    console.log(
-      "Servidor iniciado com arquitetura de provedores e persistência."
-    );
+    console.log("Servidor iniciado com arquitetura de provedores.");
   } catch (error) {
     console.error("Erro ao iniciar aplicação:", error);
     process.exit(1);
