@@ -1,5 +1,4 @@
 import type { FlowSession } from "../types/flow";
-import { ISessionStore } from "./session-store.interface";
 
 export interface UserFlowSession {
   userId: string;
@@ -7,7 +6,7 @@ export interface UserFlowSession {
   flowSession: FlowSession;
 }
 
-export class InMemorySessionStore implements ISessionStore {
+export class InMemorySessionStore {
   private sessions = new Map<string, UserFlowSession>();
 
   get(userId: string): UserFlowSession | null {
