@@ -1,12 +1,20 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { MessageProcessorService } from "../../src/messages/message-processor.service";
+import { FlowEngine } from "../../src/engine/flow-engine";
+import { FlowMatcher } from "../../src/flows/flow-matcher";
+import { InMemorySessionStore } from "../../src/sessions/in-memory-session-store";
 
 describe("MessageProcessorService - Menu and Numeric Selection", () => {
   let processor: MessageProcessorService;
 
   beforeEach(() => {
-    processor = new MessageProcessorService();
+    processor = new MessageProcessorService(
+      new FlowEngine(),
+      new FlowMatcher(),
+      new InMemorySessionStore()
+    );
   });
+
 
   describe("First Message - Menu Display", () => {
     it("deve exibir menu quando primeira mensagem é genérica ('oi')", async () => {

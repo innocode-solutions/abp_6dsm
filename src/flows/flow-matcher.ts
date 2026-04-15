@@ -1,6 +1,7 @@
 import type { FlowDefinition, FlowMatcherResult } from "../types/flow";
+import { IFlowMatcher } from "./flow-matcher.interface";
 
-export class FlowMatcher {
+export class FlowMatcher implements IFlowMatcher {
   /**
    * Tries to match a message to a flow.
    * Returns:
@@ -50,4 +51,4 @@ export class FlowMatcher {
 
     return null;
   }
-}
+}

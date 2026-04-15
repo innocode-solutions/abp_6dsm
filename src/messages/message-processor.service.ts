@@ -1,19 +1,17 @@
-import { FlowEngine } from "../engine/flow-engine";
-import { FlowMatcher } from "../flows/flow-matcher";
+import { IFlowEngine } from "../engine/flow-engine.interface";
+import { IFlowMatcher } from "../flows/flow-matcher.interface";
 import { flowRegistry, getFlowsAsMenu } from "../flows/flow-registry";
-import { InMemorySessionStore } from "../sessions/in-memory-session-store";
+import { ISessionStore } from "../sessions/session-store.interface";
 import type { FlowDefinition, FlowOption, FlowResponse } from "../types/flow";
+import { IMessageProcessor } from "./message-processor.interface";
 
-export class MessageProcessorService {
-  private flowEngine: FlowEngine;
-  private flowMatcher: FlowMatcher;
-  private sessionStore: InMemorySessionStore;
 
-  constructor() {
-    this.flowEngine = new FlowEngine();
-    this.flowMatcher = new FlowMatcher();
-    this.sessionStore = new InMemorySessionStore();
-  }
+export class MessageProcessorService implements IMessageProcessor {
+  constructor(
+    private flowEngine: IFlowEngine,
+    private flowMatcher: IFlowMatcher,
+    private sessionStore: ISessionStore
+  ) {}
 
   async processIncomingMessage(from: string, body: string): Promise<string> {
     const existingSession = this.sessionStore.get(from);
