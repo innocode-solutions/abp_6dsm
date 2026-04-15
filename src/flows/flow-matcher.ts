@@ -1,6 +1,7 @@
 import type { FlowDefinition } from "../types/flow";
+import { IFlowMatcher } from "./flow-matcher.interface";
 
-export class FlowMatcher {
+export class FlowMatcher implements IFlowMatcher {
   findByMessage(message: string, flows: FlowDefinition[]): FlowDefinition | null {
     const normalizedMessage = message.trim().toLowerCase();
 

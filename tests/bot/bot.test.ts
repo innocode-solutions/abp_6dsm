@@ -1,35 +1,31 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProconBot } from "../../src/bot/bot";
 
-const logIncomingMessageMock = vi.fn();
-const processIncomingMessageMock = vi.fn();
-
-vi.mock("../../src/messages/message-log.service", () => {
-  class MockMessageLogService {
-    logIncomingMessage = logIncomingMessageMock;
-  }
-  return { MessageLogService: MockMessageLogService };
-});
-
-vi.mock("../../src/messages/message-processor.service", () => {
-  class MockMessageProcessorService {
-    processIncomingMessage = processIncomingMessageMock.mockResolvedValue("Bot Response");
-  }
-  return { MessageProcessorService: MockMessageProcessorService };
-});
-
 describe("ProconBot", () => {
+  const mockProvider = {
+    initialize: vi.fn(),
+    onMessage: vi.fn()
+  };
+
+  const mockProcessor = {
+    processIncomingMessage: vi.fn().mockResolvedValue("Bot Response")
+  };
+
+  const mockLogService = {
+    logIncomingMessage: vi.fn().mockResolvedValue(undefined),
+    logOutgoingMessage: vi.fn().mockResolvedValue(undefined)
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("deve inicializar o provider e registrar handler de mensagem", async () => {
-    const mockProvider = {
-      initialize: vi.fn(),
-      onMessage: vi.fn()
-    };
-
-    const bot = new ProconBot(mockProvider as any);
+    const bot = new ProconBot(
+      mockProvider as any,
+      mockProcessor as any,
+      mockLogService as any
+    );
     await bot.start();
 
     expect(mockProvider.initialize).toHaveBeenCalledTimes(1);
@@ -38,12 +34,18 @@ describe("ProconBot", () => {
 
   it("deve processar mensagem e responder via reply do provider", async () => {
     let messageHandler: any;
-    const mockProvider = {
-      initialize: vi.fn(),
-      onMessage: vi.fn((handler) => { messageHandler = handler; })
+    const providerWithHandler = {
+      ...mockProvider,
+      onMessage: vi.fn((handler) => {
+        messageHandler = handler;
+      })
     };
 
-    const bot = new ProconBot(mockProvider as any);
+    const bot = new ProconBot(
+      providerWithHandler as any,
+      mockProcessor as any,
+      mockLogService as any
+    );
     await bot.start();
 
     const replyMock = vi.fn();
@@ -56,9 +58,13 @@ describe("ProconBot", () => {
 
     await messageHandler(mockMessage);
 
-    expect(logIncomingMessageMock).toHaveBeenCalledTimes(1);
-    expect(processIncomingMessageMock).toHaveBeenCalledTimes(1);
-    expect(processIncomingMessageMock).toHaveBeenCalledWith("user123", "ola");
+    expect(mockLogService.logIncomingMessage).toHaveBeenCalledTimes(1);
+    expect(mockProcessor.processIncomingMessage).toHaveBeenCalledTimes(1);
+    expect(mockProcessor.processIncomingMessage).toHaveBeenCalledWith(
+      "user123",
+      "ola"
+    );
+    expect(mockLogService.logOutgoingMessage).toHaveBeenCalledTimes(1);
     expect(replyMock).toHaveBeenCalledWith("Bot Response");
   });
 });

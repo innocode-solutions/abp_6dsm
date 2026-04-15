@@ -5,6 +5,7 @@ import {
   FlowSession,
   FlowStep
 } from "../types/flow";
+import { IFlowEngine } from "./flow-engine.interface";
 
 export interface FlowEngineNextStepResult {
   type: "step";
@@ -21,7 +22,7 @@ export type FlowEngineResult =
   | FlowEngineNextStepResult
   | FlowEngineCompletedResult;
 
-export class FlowEngine {
+export class FlowEngine implements IFlowEngine {
   start(flow: FlowDefinition): FlowSession {
     return {
       flowId: flow.id,
