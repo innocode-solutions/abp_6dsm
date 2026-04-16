@@ -8,12 +8,17 @@ export class WhatsAppProvider implements MessagingProvider {
   private readonly pairingPhoneNumber: string | null;
   private readonly authPath: string;
   private readonly browserLogEnabled: boolean;
+  private readonly pairingRetryDelayMs: number;
   private diagnosticsRegistered = false;
+  private pairingRetryTimeout: NodeJS.Timeout | null = null;
 
   constructor() {
     const chromePath = process.env.PUPPETEER_EXECUTABLE_PATH?.trim();
     this.authPath = process.env.WHATSAPP_AUTH_PATH?.trim() || ".wwebjs_auth";
     this.browserLogEnabled = this.isTruthy(process.env.WHATSAPP_BROWSER_LOGS);
+    this.pairingRetryDelayMs = this.parseRetryDelay(
+      process.env.WHATSAPP_PAIRING_RETRY_DELAY_MS
+    );
     this.pairingPhoneNumber = this.normalizePhoneNumber(
       process.env.WHATSAPP_PHONE_NUMBER
     );
@@ -56,15 +61,19 @@ export class WhatsAppProvider implements MessagingProvider {
     });
 
     this.registerEvents();
+    this.wrapPairingCodeRequest();
   }
 
   async initialize(): Promise<void> {
     this.logStartupContext();
+    const diagnosticsWatcher = this.startDiagnosticsWatcher();
 
     try {
       await this.client.initialize();
+      clearInterval(diagnosticsWatcher);
       this.attachBrowserDiagnostics();
     } catch (error) {
+      clearInterval(diagnosticsWatcher);
       this.logError("Falha ao inicializar cliente do WhatsApp", error);
       this.attachBrowserDiagnostics();
       throw error;
@@ -156,6 +165,16 @@ export class WhatsAppProvider implements MessagingProvider {
     return sanitized.length > 0 ? sanitized : null;
   }
 
+  private parseRetryDelay(value?: string): number {
+    const parsed = Number(value);
+
+    if (!Number.isFinite(parsed) || parsed < 1000) {
+      return 15000;
+    }
+
+    return parsed;
+  }
+
   private isTruthy(value?: string): boolean {
     if (!value) {
       return false;
@@ -180,7 +199,61 @@ export class WhatsAppProvider implements MessagingProvider {
           this.pairingPhoneNumber
         )}`
       );
+      console.log(
+        `[WhatsApp] Retry do pareamento por codigo: ${this.pairingRetryDelayMs} ms`
+      );
     }
+  }
+
+  private startDiagnosticsWatcher(): NodeJS.Timeout {
+    return setInterval(() => {
+      this.attachBrowserDiagnostics();
+    }, 1000);
+  }
+
+  private wrapPairingCodeRequest(): void {
+    const client = this.client as Client & {
+      requestPairingCode?: (
+        phoneNumber: string,
+        showNotification?: boolean,
+        intervalMs?: number
+      ) => Promise<string>;
+    };
+
+    if (!client.requestPairingCode) {
+      return;
+    }
+
+    const originalRequestPairingCode = client.requestPairingCode.bind(client);
+
+    client.requestPairingCode = async (
+      phoneNumber: string,
+      showNotification = true,
+      intervalMs = 180000
+    ): Promise<string> => {
+      try {
+        const code = await originalRequestPairingCode(
+          phoneNumber,
+          showNotification,
+          intervalMs
+        );
+
+        if (code) {
+          console.log(
+            `[WhatsApp] Solicitacao de codigo concluida para ${this.maskPhoneNumber(
+              phoneNumber
+            )}.`
+          );
+        }
+
+        return code;
+      } catch (error) {
+        this.logError("Falha ao solicitar codigo de pareamento", error);
+        await this.logPairingStateSnapshot();
+        this.schedulePairingRetry(phoneNumber, showNotification, intervalMs);
+        return "";
+      }
+    };
   }
 
   private attachBrowserDiagnostics(): void {
@@ -233,6 +306,72 @@ export class WhatsAppProvider implements MessagingProvider {
     }
 
     console.log(`[WhatsApp] Diagnostico do navegador ativo em ${page.url()}.`);
+  }
+
+  private schedulePairingRetry(
+    phoneNumber: string,
+    showNotification: boolean,
+    intervalMs: number
+  ): void {
+    if (this.pairingRetryTimeout) {
+      return;
+    }
+
+    console.warn(
+      `[WhatsApp] Novo pareamento por codigo sera tentado em ${this.pairingRetryDelayMs} ms.`
+    );
+
+    this.pairingRetryTimeout = setTimeout(() => {
+      this.pairingRetryTimeout = null;
+
+      void (this.client as Client & {
+        requestPairingCode(
+          phoneNumber: string,
+          showNotification?: boolean,
+          intervalMs?: number
+        ): Promise<string>;
+      })
+        .requestPairingCode(phoneNumber, showNotification, intervalMs)
+        .catch((error: unknown) => {
+          this.logError("Falha ao repetir solicitacao do codigo", error);
+        });
+    }, this.pairingRetryDelayMs);
+  }
+
+  private async logPairingStateSnapshot(): Promise<void> {
+    const page = (this.client as Client & {
+      pupPage?: {
+        evaluate<T>(fn: () => T | Promise<T>): Promise<T>;
+      };
+    }).pupPage;
+
+    if (!page) {
+      console.warn("[WhatsApp] Snapshot do pareamento indisponivel: pagina nao criada.");
+      return;
+    }
+
+    try {
+      const snapshot = await page.evaluate(() => {
+        const authStore = (window as Window & {
+          AuthStore?: {
+            AppState?: { state?: string };
+            PairingCodeLinkUtils?: unknown;
+          };
+        }).AuthStore;
+
+        return {
+          location: window.location.href,
+          appState: authStore?.AppState?.state ?? "desconhecido",
+          hasPairingCodeLinkUtils: Boolean(authStore?.PairingCodeLinkUtils),
+          documentReadyState: document.readyState,
+          userAgent: navigator.userAgent
+        };
+      });
+
+      console.log("[WhatsApp] Snapshot do pareamento:", snapshot);
+    } catch (error) {
+      this.logError("Falha ao coletar snapshot do pareamento", error);
+    }
   }
 
   private logError(context: string, error: unknown): void {
