@@ -12,6 +12,29 @@ import { WhatsAppProvider } from "./whatsapp/whatsapp-provider";
 
 import { IHistoryRepository } from "./messages/history";
 
+function logFatalError(origin: string, error: unknown): void {
+  if (error instanceof Error) {
+    console.error(`[Bootstrap] ${origin}: ${error.name}: ${error.message}`);
+
+    if (error.stack) {
+      console.error(error.stack);
+    }
+
+    return;
+  }
+
+  console.error(`[Bootstrap] ${origin}:`, error);
+}
+
+process.on("unhandledRejection", (reason) => {
+  logFatalError("Promessa rejeitada sem tratamento", reason);
+});
+
+process.on("uncaughtException", (error) => {
+  logFatalError("Excecao nao capturada", error);
+  process.exit(1);
+});
+
 export async function bootstrap(): Promise<void> {
   try {
     let historyRepository: IHistoryRepository | undefined;
@@ -53,4 +76,4 @@ export async function bootstrap(): Promise<void> {
 
 if (process.env.NODE_ENV !== "test") {
   bootstrap();
-}
+}

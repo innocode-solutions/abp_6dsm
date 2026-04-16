@@ -5,7 +5,7 @@
 # -----------------------------------------------------------------------------
 # Etapa 1: compila TypeScript (inclui devDependencies: typescript, etc.)
 # -----------------------------------------------------------------------------
-FROM node:22-bookworm-slim AS builder
+FROM node:22.22.2-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ RUN npm run build
 # -----------------------------------------------------------------------------
 # Etapa 2: runtime — só dependências de produção + Chromium do sistema
 # -----------------------------------------------------------------------------
-FROM node:22-bookworm-slim AS runner
+FROM node:22.22.2-bookworm-slim AS runner
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
@@ -50,6 +50,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV PUPPETEER_DISABLE_HEADLESS_WARNING=true
 
 WORKDIR /app
 
@@ -58,6 +59,11 @@ RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
 
+RUN mkdir -p /app/.wwebjs_auth /app/.wwebjs_cache \
+    && chown -R node:node /app
+
 ENV NODE_ENV=production
+
+USER node
 
 CMD ["npm", "start"]
