@@ -1,8 +1,6 @@
-# Railway — ProconBot Jacareí
-# Dois serviços: proconbot (app principal) + ollama (embeddings)
-
 [build]
 builder = "DOCKERFILE"
+dockerfilePath = "docker/Dockerfile"
 
 [deploy]
 startCommand = "npm start"
