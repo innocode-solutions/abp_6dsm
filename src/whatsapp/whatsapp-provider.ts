@@ -3,6 +3,8 @@ import { Client, LocalAuth, Message } from "whatsapp-web.js";
 import { IncomingMessage, MessagingProvider } from "../types/messaging";
 
 export class WhatsAppProvider implements MessagingProvider {
+  private static readonly QR_RENDER_COOLDOWN_MS = 60000;
+
   private client: Client;
   private onMessageHandler: ((message: IncomingMessage) => Promise<void>) | null = null;
   private readonly pairingPhoneNumber: string | null;
@@ -11,6 +13,7 @@ export class WhatsAppProvider implements MessagingProvider {
   private readonly pairingRetryDelayMs: number;
   private diagnosticsRegistered = false;
   private pairingRetryTimeout: NodeJS.Timeout | null = null;
+  private lastQrRenderedAt = 0;
 
   constructor() {
     const chromePath = process.env.PUPPETEER_EXECUTABLE_PATH?.trim();
@@ -93,7 +96,20 @@ export class WhatsAppProvider implements MessagingProvider {
         return;
       }
 
+      if (!this.shouldRenderQrNow()) {
+        const remainingMs =
+          WhatsAppProvider.QR_RENDER_COOLDOWN_MS -
+          (Date.now() - this.lastQrRenderedAt);
+        console.log(
+          `[WhatsApp] Novo QR recebido. Aguardando ${Math.ceil(
+            remainingMs / 1000
+          )}s para exibir novamente.`
+        );
+        return;
+      }
+
       console.log("QR Code recebido. Escaneie com o WhatsApp:");
+      this.lastQrRenderedAt = Date.now();
       qrcode.generate(qr, { small: true });
     });
 
@@ -158,6 +174,10 @@ export class WhatsAppProvider implements MessagingProvider {
       message.from === "status@broadcast" || 
       message.from.endsWith("@g.us")
     );
+  }
+
+  private shouldRenderQrNow(): boolean {
+    return Date.now() - this.lastQrRenderedAt >= WhatsAppProvider.QR_RENDER_COOLDOWN_MS;
   }
 
   private normalizePhoneNumber(phoneNumber?: string): string | null {

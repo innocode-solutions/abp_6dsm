@@ -39,6 +39,12 @@ describe("WhatsAppProvider", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.WHATSAPP_PHONE_NUMBER;
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-15T10:00:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("deve registrar eventos ao instanciar", () => {
@@ -79,6 +85,37 @@ describe("WhatsAppProvider", () => {
     qrCallback("conteudo-do-qr");
 
     expect(qrcode.generate).not.toHaveBeenCalled();
+  });
+
+  it("deve renderizar o QR normalmente quando o modo por codigo estiver desativado", () => {
+    new WhatsAppProvider();
+
+    const qrCall = onMock.mock.calls.find(call => call[0] === "qr");
+    const qrCallback = qrCall![1];
+
+    qrCallback("conteudo-do-qr");
+
+    expect(qrcode.generate).toHaveBeenCalledTimes(1);
+    expect(qrcode.generate).toHaveBeenCalledWith("conteudo-do-qr", { small: true });
+  });
+
+  it("deve respeitar 60s entre exibicoes de QR", () => {
+    new WhatsAppProvider();
+
+    const qrCall = onMock.mock.calls.find(call => call[0] === "qr");
+    const qrCallback = qrCall![1];
+
+    qrCallback("qr-1");
+    expect(qrcode.generate).toHaveBeenCalledTimes(1);
+
+    vi.setSystemTime(new Date("2026-04-15T10:00:30.000Z"));
+    qrCallback("qr-2");
+    expect(qrcode.generate).toHaveBeenCalledTimes(1);
+
+    vi.setSystemTime(new Date("2026-04-15T10:01:00.000Z"));
+    qrCallback("qr-3");
+    expect(qrcode.generate).toHaveBeenCalledTimes(2);
+    expect(qrcode.generate).toHaveBeenLastCalledWith("qr-3", { small: true });
   });
 
   it("deve chamar o handler quando receber uma mensagem válida", async () => {
