@@ -2,22 +2,16 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { MessageProcessorService } from "../../src/messages/message-processor.service";
 import { FlowEngine } from "../../src/engine/flow-engine";
 import { FlowMatcher } from "../../src/flows/flow-matcher";
-import { KnowledgeService } from "../../src/knowledge/knowledge-service";
-import type { IKnowledgeRepository } from "../../src/knowledge/knowledge-repository.interface";
 import { InMemorySessionStore } from "../../src/sessions/in-memory-session-store";
 
 describe("MessageProcessorService - Menu and Numeric Selection", () => {
   let processor: MessageProcessorService;
-  const knowledgeRepositoryMock: IKnowledgeRepository = {
-    search: () => []
-  };
 
   beforeEach(() => {
     processor = new MessageProcessorService(
       new FlowEngine(),
       new FlowMatcher(),
-      new InMemorySessionStore(),
-      new KnowledgeService(knowledgeRepositoryMock)
+      new InMemorySessionStore()
     );
   });
 
@@ -170,37 +164,6 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
         response = await processor.processIncomingMessage(user_variant, testCase);
         expect(response).toContain("Olá! Sou o ProconBot Jacareí");
       }
-    });
-  });
-
-  describe("CDC Knowledge Fallback", () => {
-    it("deve responder com base CDC quando não há match de fluxo", async () => {
-      const processorWithKnowledge = new MessageProcessorService(
-        new FlowEngine(),
-        new FlowMatcher(),
-        new InMemorySessionStore(),
-        new KnowledgeService({
-          search: () => [
-            {
-              score: 2,
-              entry: {
-                id: "cdc-42",
-                title: "Art. 42 - Cobrança indevida",
-                body: "Em caso de cobrança indevida, o consumidor pode ter devolução em dobro."
-              }
-            }
-          ]
-        })
-      );
-
-      const response = await processorWithKnowledge.processIncomingMessage(
-        "user-cdc",
-        "quais são meus direitos do consumidor"
-      );
-
-      expect(response).toContain("Código de Defesa do Consumidor");
-      expect(response).toContain("Art. 42 - Cobrança indevida");
-      expect(response).toContain("devolução em dobro");
     });
   });
 });

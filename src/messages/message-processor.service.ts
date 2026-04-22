@@ -1,7 +1,6 @@
 import { IFlowEngine } from "../engine/flow-engine.interface";
 import { IFlowMatcher } from "../flows/flow-matcher.interface";
 import { flowRegistry, getFlowsAsMenu } from "../flows/flow-registry";
-import { KnowledgeService } from "../knowledge/knowledge-service";
 import { ISessionStore } from "../sessions/session-store.interface";
 import type { FlowDefinition, FlowOption, FlowResponse } from "../types/flow";
 import { IMessageProcessor } from "./message-processor.interface";
@@ -12,8 +11,7 @@ export class MessageProcessorService implements IMessageProcessor {
   constructor(
     private flowEngine: IFlowEngine,
     private flowMatcher: IFlowMatcher,
-    private sessionStore: ISessionStore,
-    private knowledgeService?: KnowledgeService
+    private sessionStore: ISessionStore
   ) {}
 
   async processIncomingMessage(from: string, body: string): Promise<string> {
@@ -43,13 +41,6 @@ export class MessageProcessorService implements IMessageProcessor {
       if (result.type === "step") {
         this.sessionStore.save(existingSession);
         return this.formatStep(result.step.question, result.step.options);
-      }
-
-        // No flow match - try legal knowledge base (CDC in markdown)
-      const knowledgeAnswer = this.knowledgeService?.findAnswer(body);
-
-      if (knowledgeAnswer) {
-        return knowledgeAnswer;
       }
 
       this.sessionStore.clear(from);
@@ -94,13 +85,6 @@ export class MessageProcessorService implements IMessageProcessor {
       }
 
       return this.formatStep(firstStep.question, firstStep.options);
-    }
-
-    // No flow match - try legal knowledge base (CDC in markdown)
-    const knowledgeAnswer = this.knowledgeService?.findAnswer(body);
-
-    if (knowledgeAnswer) {
-      return knowledgeAnswer;
     }
 
     // No match found - show menu
