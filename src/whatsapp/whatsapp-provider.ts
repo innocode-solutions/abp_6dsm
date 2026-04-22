@@ -3,7 +3,7 @@ import { Client, LocalAuth, Message } from "whatsapp-web.js";
 import { IncomingMessage, MessagingProvider } from "../types/messaging";
 
 export class WhatsAppProvider implements MessagingProvider {
-  private static readonly QR_RENDER_COOLDOWN_MS = 60000;
+  private static readonly QR_RENDER_COOLDOWN_MS = 180000; // 3 minutos;;
 
   private client: Client;
   private onMessageHandler: ((message: IncomingMessage) => Promise<void>) | null = null;
