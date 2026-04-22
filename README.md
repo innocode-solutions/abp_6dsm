@@ -1,3 +1,4 @@
+<img width="1327" height="784" alt="burndown_sprint1_procon" src="https://github.com/user-attachments/assets/c75cd811-4a16-4cf6-a725-fc41d44111ac" />
 <span id="topo"></span>
 
 <h1 align="center"> ProconBot Jacareí </h1>
@@ -128,6 +129,13 @@ Implementar a comunicação via WhatsApp e os primeiros fluxos de atendimento do
 | US07 | RF02, RF03, RF04 | Fluxo empréstimo não reconhecido | 3 |
 | US08 | RF02, RF03, RF04 | Fluxo direito de arrependimento | 3 |
 | US09 | RF02, RF03, RF04 | Fluxo cancelamento de plano | 3 |
+
+<br>
+
+<div align="center">
+  <p><i>Gráfico de Burndown do Sprint 1</i></p>
+  <img src="https://github.com/user-attachments/assets/c75cd811-4a16-4cf6-a725-fc41d44111ac" alt="burndown_sprint1_procon" width="100%" />
+</div>
 
 </details>
 
