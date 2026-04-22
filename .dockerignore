@@ -6,6 +6,7 @@ dist
 .env.*
 !.env.example
 *.md
+!docs/knowledge/cdc.md
 coverage
 .vscode
 .cursor
