@@ -5,6 +5,7 @@ import { connectMongo, isMongoConfigured } from "./database/connection";
 import { MongoHistoryRepository } from "./database/repositories/mongo-history-repository";
 import { FlowEngine } from "./engine/flow-engine";
 import { FlowMatcher } from "./flows/flow-matcher";
+import { KnowledgeService, MarkdownCdcRepository } from "./knowledge";
 import { MessageLogService } from "./messages/message-log.service";
 import { MessageProcessorService } from "./messages/message-processor.service";
 import { InMemorySessionStore } from "./sessions/in-memory-session-store";
@@ -54,11 +55,14 @@ export async function bootstrap(): Promise<void> {
     const flowEngine = new FlowEngine();
     const flowMatcher = new FlowMatcher();
     const sessionStore = new InMemorySessionStore();
+    const knowledgeRepository = new MarkdownCdcRepository();
+    const knowledgeService = new KnowledgeService(knowledgeRepository);
 
     const processor = new MessageProcessorService(
       flowEngine,
       flowMatcher,
-      sessionStore
+      sessionStore,
+      knowledgeService
     );
 
     const bot = new ProconBot(provider, processor, logService);
