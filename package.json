@@ -38,6 +38,7 @@
     "vitest": "^4.1.0"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "dotenv": "^16.4.7",
     "mongoose": "^8.9.5",
     "qrcode-terminal": "^0.12.0",

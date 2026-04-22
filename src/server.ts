@@ -5,9 +5,14 @@ import { connectMongo, isMongoConfigured } from "./database/connection";
 import { MongoHistoryRepository } from "./database/repositories/mongo-history-repository";
 import { FlowEngine } from "./engine/flow-engine";
 import { FlowMatcher } from "./flows/flow-matcher";
-import { KnowledgeService, MarkdownCdcRepository } from "./knowledge";
+import {
+  KnowledgeService,
+  MarkdownCdcRepository,
+  SemanticCdcRepository
+} from "./knowledge";
 import { MessageLogService } from "./messages/message-log.service";
 import { MessageProcessorService } from "./messages/message-processor.service";
+import { GeminiEmbeddingService, GeminiLlmService } from "./rag";
 import { InMemorySessionStore } from "./sessions/in-memory-session-store";
 import { WhatsAppProvider } from "./whatsapp/whatsapp-provider";
 
@@ -55,8 +60,26 @@ export async function bootstrap(): Promise<void> {
     const flowEngine = new FlowEngine();
     const flowMatcher = new FlowMatcher();
     const sessionStore = new InMemorySessionStore();
-    const knowledgeRepository = new MarkdownCdcRepository();
-    const knowledgeService = new KnowledgeService(knowledgeRepository);
+
+    // RAG: usa busca semântica + LLM se GEMINI_API_KEY estiver configurada
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    let knowledgeService: KnowledgeService;
+
+    if (geminiApiKey) {
+      const embeddingService = new GeminiEmbeddingService(geminiApiKey);
+      const llmService = new GeminiLlmService(geminiApiKey);
+      const knowledgeRepository = new SemanticCdcRepository(embeddingService);
+
+      await knowledgeRepository.initialize();
+
+      knowledgeService = new KnowledgeService(knowledgeRepository, llmService);
+      console.log("[RAG] Busca semântica e geração com LLM ativadas.");
+    } else {
+      console.warn(
+        "[RAG] GEMINI_API_KEY não definida: usando busca por keyword sem LLM."
+      );
+      knowledgeService = new KnowledgeService(new MarkdownCdcRepository());
+    }
 
     const processor = new MessageProcessorService(
       flowEngine,

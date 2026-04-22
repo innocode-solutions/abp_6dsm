@@ -32,14 +32,14 @@ const STOPWORDS = new Set([
 ]);
 
 export class MarkdownCdcRepository implements IKnowledgeRepository {
-  private readonly entries: KnowledgeEntry[];
+  protected readonly entries: KnowledgeEntry[];
 
   constructor(markdownPath = resolve(process.cwd(), "docs", "knowledge", "cdc.md")) {
     const markdown = readFileSync(markdownPath, "utf-8");
     this.entries = this.parseEntries(markdown);
   }
 
-  search(query: string, limit = 3): KnowledgeHit[] {
+  async search(query: string, limit = 3): Promise<KnowledgeHit[]> {
     const terms = this.tokenize(query);
 
     if (terms.length === 0) {
@@ -70,7 +70,7 @@ export class MarkdownCdcRepository implements IKnowledgeRepository {
     return score;
   }
 
-  private parseEntries(markdown: string): KnowledgeEntry[] {
+  protected parseEntries(markdown: string): KnowledgeEntry[] {
     const lines = markdown.split(/\r?\n/);
     const entries: KnowledgeEntry[] = [];
     let currentTitle = "";

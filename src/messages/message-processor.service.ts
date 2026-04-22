@@ -45,13 +45,6 @@ export class MessageProcessorService implements IMessageProcessor {
         return this.formatStep(result.step.question, result.step.options);
       }
 
-        // No flow match - try legal knowledge base (CDC in markdown)
-      const knowledgeAnswer = this.knowledgeService?.findAnswer(body);
-
-      if (knowledgeAnswer) {
-        return knowledgeAnswer;
-      }
-
       this.sessionStore.clear(from);
       return this.formatCompletedResponse(result.response);
     }
@@ -96,8 +89,8 @@ export class MessageProcessorService implements IMessageProcessor {
       return this.formatStep(firstStep.question, firstStep.options);
     }
 
-    // No flow match - try legal knowledge base (CDC in markdown)
-    const knowledgeAnswer = this.knowledgeService?.findAnswer(body);
+    // No flow match - try legal knowledge base via RAG
+    const knowledgeAnswer = await this.knowledgeService?.findAnswer(body);
 
     if (knowledgeAnswer) {
       return knowledgeAnswer;

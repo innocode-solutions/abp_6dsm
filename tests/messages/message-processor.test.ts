@@ -9,7 +9,7 @@ import { InMemorySessionStore } from "../../src/sessions/in-memory-session-store
 describe("MessageProcessorService - Menu and Numeric Selection", () => {
   let processor: MessageProcessorService;
   const knowledgeRepositoryMock: IKnowledgeRepository = {
-    search: () => []
+    search: async () => []
   };
 
   beforeEach(() => {
@@ -180,7 +180,7 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
         new FlowMatcher(),
         new InMemorySessionStore(),
         new KnowledgeService({
-          search: () => [
+          search: async () => [
             {
               score: 2,
               entry: {
