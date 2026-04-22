@@ -625,4 +625,4 @@ julho de 1985, o seguinte dispositivo, renumerando-se os seguintes: “Art. 21. 
 cento e oitenta dias a contar de sua publicação.
 
 ## Art. 119. Revogam-se as disposições em contrário.
-Brasília, 11 de setembro de 1990; 169° da Independência e 102° da República. FERNANDO COLLOR Bernardo Cabral Zélia M. Cardoso de Mello Ozires Silva
+Brasília, 11 de setembro de 1990; 169° da Independência e 102° da República. FERNANDO COLLOR Bernardo Cabral Zélia M. Cardoso de Mello Ozires Silva.

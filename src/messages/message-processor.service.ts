@@ -7,6 +7,7 @@ import type { FlowDefinition, FlowOption, FlowResponse } from "../types/flow";
 import { IMessageProcessor } from "./message-processor.interface";
 
 
+
 export class MessageProcessorService implements IMessageProcessor {
   constructor(
     private flowEngine: IFlowEngine,
@@ -42,6 +43,13 @@ export class MessageProcessorService implements IMessageProcessor {
       if (result.type === "step") {
         this.sessionStore.save(existingSession);
         return this.formatStep(result.step.question, result.step.options);
+      }
+
+        // No flow match - try legal knowledge base (CDC in markdown)
+      const knowledgeAnswer = this.knowledgeService?.findAnswer(body);
+
+      if (knowledgeAnswer) {
+        return knowledgeAnswer;
       }
 
       this.sessionStore.clear(from);
