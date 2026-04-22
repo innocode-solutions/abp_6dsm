@@ -99,7 +99,7 @@ describe("WhatsAppProvider", () => {
     expect(qrcode.generate).toHaveBeenCalledWith("conteudo-do-qr", { small: true });
   });
 
-  it("deve respeitar 60s entre exibicoes de QR", () => {
+  it("deve respeitar 180s entre exibicoes de QR", () => {
     new WhatsAppProvider();
 
     const qrCall = onMock.mock.calls.find(call => call[0] === "qr");
@@ -114,8 +114,12 @@ describe("WhatsAppProvider", () => {
 
     vi.setSystemTime(new Date("2026-04-15T10:01:00.000Z"));
     qrCallback("qr-3");
+    expect(qrcode.generate).toHaveBeenCalledTimes(1);
+
+    vi.setSystemTime(new Date("2026-04-15T10:03:00.000Z"));
+    qrCallback("qr-4");
     expect(qrcode.generate).toHaveBeenCalledTimes(2);
-    expect(qrcode.generate).toHaveBeenLastCalledWith("qr-3", { small: true });
+    expect(qrcode.generate).toHaveBeenLastCalledWith("qr-4", { small: true });
   });
 
   it("deve chamar o handler quando receber uma mensagem válida", async () => {
