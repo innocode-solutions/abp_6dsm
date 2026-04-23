@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import mongoose from "mongoose";
+import { RagIndexEntryModel } from "../database/models/rag-index.model";
 import type { IEmbeddingService } from "../rag/embedding.interface";
 import { VectorStore } from "../rag/vector-store";
 import type { KnowledgeEntry, KnowledgeHit } from "./knowledge-entry";
@@ -75,8 +76,6 @@ export class SemanticCdcRepository extends MarkdownCdcRepository {
   /** Tenta carregar o índice do MongoDB. Retorna true se carregou com sucesso. */
   private async tryLoadFromMongo(): Promise<boolean> {
     try {
-      // Import dinâmico evita problemas de registro do modelo em contextos de teste
-      const { RagIndexEntryModel } = await import("../database/models/rag-index.model");
       const entries = await RagIndexEntryModel.find({}).lean();
 
       if (entries.length === 0) return false;
