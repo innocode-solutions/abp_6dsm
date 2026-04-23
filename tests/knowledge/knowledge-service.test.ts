@@ -120,6 +120,35 @@ describe("KnowledgeService", () => {
     expect(response).toContain("PROCON");
   });
 
+  it("deve usar fallback por artigo quando o LLM falhar", async () => {
+    const repository: IKnowledgeRepository = {
+      search: async () => [
+        {
+          score: 0.9,
+          entry: {
+            id: "cdc-49",
+            title: "Art. 49 - Direito de arrependimento",
+            body: "Consumidor pode desistir da compra em 7 dias."
+          }
+        }
+      ]
+    };
+
+    const llmService = {
+      generate: async () => {
+        throw new Error("[GeminiLLM] 503 Service Unavailable");
+      }
+    };
+
+    const service = new KnowledgeService(repository, llmService);
+    const response = await service.findAnswer("posso cancelar minha compra?");
+
+    expect(response).not.toBeNull();
+    expect(response).toContain("Código de Defesa do Consumidor");
+    expect(response).toContain("Art. 49");
+    expect(response).toContain("7 dias");
+  });
+
   it("deve passar os artigos recuperados no prompt do LLM", async () => {
     let capturedPrompt = "";
 

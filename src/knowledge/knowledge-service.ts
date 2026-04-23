@@ -62,18 +62,14 @@ export class KnowledgeService {
     }
 
     if (this.llmService) {
-      return this.generateWithLlm(trimmed, hits);
+      try {
+        return await this.generateWithLlm(trimmed, hits);
+      } catch (error) {
+        console.warn("[RAG] Falha ao gerar resposta com LLM. Usando fallback por artigo.", error);
+      }
     }
 
-    // Fallback sem LLM: retorna o artigo mais relevante formatado
-    return [
-      `Encontrei uma orientação no Código de Defesa do Consumidor:`,
-      ``,
-      `${top.entry.title}`,
-      `${top.entry.body}`,
-      ``,
-      `Se quiser, posso te guiar passo a passo no que fazer no Procon.`
-    ].join("\n");
+    return this.formatTopHit(top);
   }
 
   /**
@@ -115,6 +111,17 @@ export class KnowledgeService {
     ].join("\n");
 
     return this.llmService!.generate(prompt);
+  }
+
+  private formatTopHit(top: KnowledgeHit): string {
+    return [
+      "Encontrei uma orientação no Código de Defesa do Consumidor:",
+      "",
+      top.entry.title,
+      top.entry.body,
+      "",
+      "Se quiser, posso te guiar passo a passo no que fazer no Procon."
+    ].join("\n");
   }
 
   private tokenize(text: string): string[] {
