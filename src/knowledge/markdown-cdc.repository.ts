@@ -81,10 +81,22 @@ export class MarkdownCdcRepository implements IKnowledgeRepository {
         return;
       }
 
+      // Ignorar artigos vetados — sem conteúdo útil
+      if (this.isVetado(currentTitle)) {
+        return;
+      }
+
+      const cleanedBody = this.cleanBody(currentBody).join("\n").trim();
+
+      // Ignorar entradas cujo corpo seja vazio ou apenas headings estruturais
+      if (!cleanedBody) {
+        return;
+      }
+
       entries.push({
         id: `cdc-${entries.length + 1}`,
         title: currentTitle.trim(),
-        body: currentBody.join("\n").trim()
+        body: cleanedBody
       });
     };
 
@@ -109,6 +121,21 @@ export class MarkdownCdcRepository implements IKnowledgeRepository {
 
     flush();
     return entries;
+  }
+
+  /** Artigo vetado → sem conteúdo normativo útil. */
+  private isVetado(title: string): boolean {
+    return /\(vetado\)/i.test(title);
+  }
+
+  /**
+   * Remove linhas que são puramente headers estruturais da lei
+   * (CAPÍTULO, SEÇÃO, TÍTULO, LIVRO) que acabam no corpo de um artigo
+   * por estarem contíguas no markdown.
+   */
+  private cleanBody(lines: string[]): string[] {
+    const STRUCTURAL = /^(CAPÍTULO|SEÇÃO|TÍTULO|LIVRO|PARTE)\s+/i;
+    return lines.filter((line) => !STRUCTURAL.test(line.trim()));
   }
 
   private tokenize(text: string): string[] {

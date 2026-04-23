@@ -15,7 +15,9 @@ export class GeminiLlmService implements ILlmService {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
+        contents: [{ parts: [{ text: prompt }] }],
+        // Temperatura baixa = respostas mais factuais, menos alucinação
+        generationConfig: { temperature: 0.1 }
       })
     });
 

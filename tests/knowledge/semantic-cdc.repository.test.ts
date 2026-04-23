@@ -35,7 +35,8 @@ function makeIndexFile(dir: string): string {
   const indexPath = join(dir, "cdc-index.json");
   const index = [
     { id: "cdc-1", title: "Art. 42 - Cobrança indevida", body: "Devolução em dobro.", embedding: [1, 0] },
-    { id: "cdc-2", title: "Art. 49 - Direito de arrependimento", body: "7 dias para desistir.", embedding: [0, 1] }
+    { id: "cdc-2", title: "Art. 49 - Direito de arrependimento", body: "7 dias para desistir.", embedding: [0, 1] },
+    { id: "cdc-3", title: "Art. 11. (Vetado).", body: "SEÇÃO II Responsabilidade", embedding: [0.9, 0.1] }
   ];
   writeFileSync(indexPath, JSON.stringify(index));
   return indexPath;
@@ -119,6 +120,50 @@ describe("SemanticCdcRepository", () => {
       // search() usa embed() para a query
       expect(embeddingService.embed).toHaveBeenCalledTimes(1);
       expect(embeddingService.embedBatch).not.toHaveBeenCalled();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("deve ignorar artigos vetados ao carregar o índice", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "semantic-test-"));
+    const markdownPath = join(dir, "cdc.md");
+    const indexPath = makeIndexFile(dir); // inclui Art. 11 (Vetado)
+    writeFileSync(markdownPath, SAMPLE_MARKDOWN);
+
+    try {
+      const embeddingService = makeEmbeddingService();
+      const repository = new SemanticCdcRepository(embeddingService, indexPath, markdownPath);
+      await repository.initialize();
+
+      // O índice tem 3 entradas mas 1 é vetada → só 2 carregadas
+      // Para verificar, buscamos com embedding [0.9, 0.1] (próximo do vetado)
+      // e garantimos que Art. 11 (Vetado) não aparece nos resultados
+      const hits = await repository.search("cobrança indevida", 5);
+      const titles = hits.map((h) => h.entry.title);
+      expect(titles).not.toContain("Art. 11. (Vetado).");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("deve usar hybrid search combinando score vetorial e keyword", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "semantic-test-"));
+    const markdownPath = join(dir, "cdc.md");
+    const indexPath = makeIndexFile(dir);
+    writeFileSync(markdownPath, SAMPLE_MARKDOWN);
+
+    try {
+      const embeddingService = makeEmbeddingService();
+      const repository = new SemanticCdcRepository(embeddingService, indexPath, markdownPath);
+      await repository.initialize();
+
+      // "cobrança" tem keyword match com Art. 42 E embedding próximo [1, 0]
+      const hits = await repository.search("cobrança indevida", 2);
+
+      expect(hits.length).toBeGreaterThan(0);
+      // Art. 42 deve ter score mais alto pela combinação vetorial + keyword
+      expect(hits[0].entry.title).toContain("Art. 42");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

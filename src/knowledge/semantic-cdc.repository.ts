@@ -24,6 +24,7 @@ export class SemanticCdcRepository extends MarkdownCdcRepository {
   /**
    * Carrega o índice pré-computado (cdc-index.json) para o vector store.
    * Não faz nenhuma chamada de API — os embeddings já foram gerados pelo script rag:index.
+   * Artigos vetados são descartados aqui mesmo, independente do que estiver no JSON.
    */
   async initialize(): Promise<void> {
     if (!existsSync(this.indexPath)) {
@@ -38,16 +39,25 @@ export class SemanticCdcRepository extends MarkdownCdcRepository {
     const raw = readFileSync(this.indexPath, "utf-8");
     const index: IndexEntry[] = JSON.parse(raw);
 
+    let skipped = 0;
     for (const item of index) {
+      if (/\(vetado\)/i.test(item.title)) {
+        skipped++;
+        continue;
+      }
       this.vectorStore.add(item, item.embedding);
     }
 
     this.ready = true;
-    console.log(`[RAG] Índice carregado: ${this.vectorStore.size} artigos prontos (sem chamadas de API).`);
+    console.log(
+      `[RAG] Índice carregado: ${this.vectorStore.size} artigos prontos` +
+      (skipped > 0 ? ` (${skipped} vetados ignorados)` : "") +
+      ` — sem chamadas de API.`
+    );
   }
 
   /**
-   * Busca artigos semanticamente relacionados à query via cosine similarity.
+   * Busca híbrida: combina cosine similarity (70%) com score de keyword (30%).
    * Fallback para busca por keyword se o índice não foi carregado.
    */
   override async search(query: string, limit = 3): Promise<KnowledgeHit[]> {
@@ -57,7 +67,32 @@ export class SemanticCdcRepository extends MarkdownCdcRepository {
     }
 
     const queryEmbedding = await this.embeddingService.embed(query);
-    // minScore 0.60: filtra artigos não relacionados mas aceita perguntas específicas sobre direitos
-    return this.vectorStore.search(queryEmbedding, limit, 0.60);
+
+    // Busca vetorial com threshold mais permissivo para ter candidatos ao reranking
+    const vectorHits = this.vectorStore.search(queryEmbedding, limit * 3, 0.50);
+
+    if (vectorHits.length === 0) {
+      return super.search(query, limit);
+    }
+
+    // Busca por keyword nos mesmos candidatos (hybrid scoring)
+    const keywordHits = await super.search(query, limit * 3);
+    const keywordScoreMap = new Map(keywordHits.map((h) => [h.entry.id, h.score]));
+    const maxKeywordScore = Math.max(...keywordHits.map((h) => h.score), 1);
+
+    // Score híbrido: 70% semântico + 30% keyword
+    const hybridHits = vectorHits.map((hit) => {
+      const keywordRaw = keywordScoreMap.get(hit.entry.id) ?? 0;
+      const keywordNorm = keywordRaw / maxKeywordScore;
+      return {
+        entry: hit.entry,
+        score: 0.7 * hit.score + 0.3 * keywordNorm
+      };
+    });
+
+    return hybridHits
+      .filter((h) => h.score >= 0.42) // threshold sobre score híbrido
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
   }
 }

@@ -1,15 +1,58 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { KnowledgeService } from "../../src/knowledge/knowledge-service";
 import type { IKnowledgeRepository } from "../../src/knowledge/knowledge-repository.interface";
 
 describe("KnowledgeService", () => {
-  it("deve retornar null quando não houver resultado", async () => {
+  describe("Intent guard — queries não-consumidor", () => {
+    it("deve retornar null para saudação curta ('oi')", async () => {
+      const search = vi.fn(async () => []);
+      const service = new KnowledgeService({ search });
+
+      expect(await service.findAnswer("oi")).toBeNull();
+      expect(search).not.toHaveBeenCalled();
+    });
+
+    it("deve retornar null para 'Olá' sem termo de domínio", async () => {
+      const search = vi.fn(async () => []);
+      const service = new KnowledgeService({ search });
+
+      expect(await service.findAnswer("Olá")).toBeNull();
+      expect(search).not.toHaveBeenCalled();
+    });
+
+    it("deve retornar null para mensagem curta sem termo de domínio ('oi tudo bem')", async () => {
+      const search = vi.fn(async () => []);
+      const service = new KnowledgeService({ search });
+
+      expect(await service.findAnswer("oi tudo bem")).toBeNull();
+      expect(search).not.toHaveBeenCalled();
+    });
+
+    it("deve chamar repository para query com termo de domínio ('produto com defeito')", async () => {
+      const search = vi.fn(async () => []);
+      const service = new KnowledgeService({ search });
+
+      await service.findAnswer("produto com defeito");
+      expect(search).toHaveBeenCalled();
+    });
+
+    it("deve chamar repository para query longa sem termo explícito", async () => {
+      const search = vi.fn(async () => []);
+      const service = new KnowledgeService({ search });
+
+      await service.findAnswer("quais sao os meus direitos nessa situacao toda");
+      expect(search).toHaveBeenCalled();
+    });
+  });
+
+  it("deve retornar null quando repositório não retornar resultados", async () => {
     const repository: IKnowledgeRepository = {
       search: async () => []
     };
     const service = new KnowledgeService(repository);
 
-    const response = await service.findAnswer("oi");
+    // Query com termo de domínio para ultrapassar o intent guard
+    const response = await service.findAnswer("cancelar contrato");
     expect(response).toBeNull();
   });
 
@@ -24,7 +67,8 @@ describe("KnowledgeService", () => {
     };
     const service = new KnowledgeService(repository);
 
-    const response = await service.findAnswer("alguma pergunta");
+    // Query com termo de domínio para ultrapassar o intent guard
+    const response = await service.findAnswer("cancelar contrato servico");
     expect(response).toBeNull();
   });
 

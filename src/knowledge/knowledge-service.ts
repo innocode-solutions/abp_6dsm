@@ -3,33 +3,41 @@ import type { KnowledgeHit } from "./knowledge-entry";
 import type { IKnowledgeRepository } from "./knowledge-repository.interface";
 
 const STOPWORDS = new Set([
-  "a",
-  "o",
-  "os",
-  "as",
-  "de",
-  "da",
-  "do",
-  "das",
-  "dos",
-  "e",
-  "ou",
-  "para",
-  "por",
-  "com",
-  "que",
-  "um",
-  "uma",
-  "no",
-  "na",
-  "nos",
-  "nas",
-  "em",
-  "se",
-  "ao",
-  "aos",
-  "minha",
-  "meu"
+  "a", "o", "os", "as", "de", "da", "do", "das", "dos", "e", "ou",
+  "para", "por", "com", "que", "um", "uma", "no", "na", "nos", "nas",
+  "em", "se", "ao", "aos", "minha", "meu", "meus", "minhas", "seu",
+  "seus", "sua", "suas", "este", "esta", "isso", "isto", "aqui"
+]);
+
+/**
+ * Termos de domínio do direito do consumidor (normalizados, sem acentos).
+ * Usados para detectar intenção antes de acionar o RAG.
+ */
+const CONSUMER_TERMS = new Set([
+  // Lei e direito
+  "direito", "direitos", "lei", "codigo", "cdc", "artigo", "art",
+  "procon", "consumidor", "fornecedor", "contrato", "clausula",
+  // Produto e serviço
+  "produto", "produtos", "servico", "servicos", "garantia", "defeito",
+  "vicio", "recall", "qualidade", "item",
+  // Cobranças e pagamentos
+  "cobranca", "cobrado", "cobrar", "indevida", "indevido",
+  "devolucao", "devolver", "reembolso", "reembolsar",
+  "indenizacao", "indenizar", "dano", "danos", "prejuizo",
+  "pagamento", "paguei", "pagar", "preco", "custo", "valor",
+  "nota", "fiscal", "boleto", "parcela", "taxa",
+  // Cancelamento e rescisão
+  "cancelar", "cancelamento", "desistir", "desistencia", "arrependimento",
+  "rescisao", "rescindir",
+  // Compra e comércio
+  "compra", "comprei", "comprar", "venda", "vender",
+  "troca", "trocar", "reparo", "reparar", "conserto",
+  // Entrega e prazo
+  "entrega", "entregue", "entregar", "atraso", "prazo",
+  // Reclamação
+  "reclamar", "reclamacao", "registrar", "protocolo", "denuncia",
+  // Documentos
+  "documento", "documentos", "levar",
 ]);
 
 export class KnowledgeService {
@@ -39,13 +47,14 @@ export class KnowledgeService {
   ) {}
 
   async findAnswer(query: string): Promise<string | null> {
-    const terms = this.tokenize(query);
+    const trimmed = query.trim();
+    const tokens = this.tokenize(trimmed);
 
-    if (terms.length === 0) {
+    if (!this.isConsumerQuery(trimmed, tokens)) {
       return null;
     }
 
-    const hits = await this.repository.search(query, 3);
+    const hits = await this.repository.search(trimmed, 3);
     const top = hits[0];
 
     if (!top || top.score <= 0) {
@@ -53,7 +62,7 @@ export class KnowledgeService {
     }
 
     if (this.llmService) {
-      return this.generateWithLlm(query, hits);
+      return this.generateWithLlm(trimmed, hits);
     }
 
     // Fallback sem LLM: retorna o artigo mais relevante formatado
@@ -67,6 +76,22 @@ export class KnowledgeService {
     ].join("\n");
   }
 
+  /**
+   * Determina se a query tem intenção de consulta sobre direito do consumidor.
+   *
+   * Regras:
+   * - Queries muito curtas (< 10 chars) → não (greetings, "oi", "olá", "ok")
+   * - Queries curtas (< 20 chars) → só se contiver ao menos 1 termo do domínio
+   * - Queries longas (≥ 20 chars) → sim, desde que tenham ≥ 2 tokens
+   */
+  private isConsumerQuery(query: string, tokens: string[]): boolean {
+    if (query.length < 10) return false;
+    if (query.length < 20) {
+      return tokens.some((t) => CONSUMER_TERMS.has(t));
+    }
+    return tokens.length >= 2;
+  }
+
   private async generateWithLlm(query: string, hits: KnowledgeHit[]): Promise<string> {
     const context = hits
       .map((h, i) => `[${i + 1}] ${h.entry.title}\n${h.entry.body}`)
@@ -74,16 +99,19 @@ export class KnowledgeService {
 
     const prompt = [
       "Você é o ProconBot Jacareí, assistente jurídico do PROCON de Jacareí.",
-      "Use apenas os artigos do Código de Defesa do Consumidor abaixo para responder.",
-      "Seja claro, direto e objetivo. Não invente informações além do que está no contexto.",
+      "Responda EXCLUSIVAMENTE com base nos artigos do CDC abaixo.",
+      "NUNCA invente artigos, datas, valores ou direitos que não estejam no contexto fornecido.",
+      "Se os artigos não forem suficientes para responder, diga claramente que não encontrou informação específica.",
+      "Seja claro, direto e acessível ao cidadão comum.",
       "",
-      "Artigos recuperados da base de conhecimento:",
+      "=== Artigos do Código de Defesa do Consumidor recuperados ===",
       context,
+      "=== Fim dos artigos ===",
       "",
       `Pergunta do consumidor: "${query}"`,
       "",
-      "Responda em português, de forma amigável e acessível ao cidadão comum.",
-      "Ao final, indique que o usuário pode buscar atendimento presencial no PROCON se precisar de mais orientações."
+      "Resposta (em português, amigável, baseada apenas no contexto acima):",
+      "Ao final, lembre o usuário que pode buscar atendimento presencial no PROCON de Jacareí."
     ].join("\n");
 
     return this.llmService!.generate(prompt);
