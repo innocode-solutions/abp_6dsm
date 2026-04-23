@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.test.json",
     "dev": "tsx src/server.ts",
     "db:ping": "tsx src/database/scripts/ping.ts",
-    "db:seed-sample": "tsx src/database/scripts/seed-sample.ts"
+    "db:seed-sample": "tsx src/database/scripts/seed-sample.ts",
+    "rag:index": "tsx src/rag/build-index.ts"
   },
   "repository": {
     "type": "git",

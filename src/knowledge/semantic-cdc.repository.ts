@@ -1,8 +1,13 @@
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { IEmbeddingService } from "../rag/embedding.interface";
 import { VectorStore } from "../rag/vector-store";
-import type { KnowledgeHit } from "./knowledge-entry";
+import type { KnowledgeEntry, KnowledgeHit } from "./knowledge-entry";
 import { MarkdownCdcRepository } from "./markdown-cdc.repository";
+
+type IndexEntry = KnowledgeEntry & { embedding: number[] };
+
+const DEFAULT_INDEX_PATH = resolve(process.cwd(), "src", "knowledge", "cdc-index.json");
 
 export class SemanticCdcRepository extends MarkdownCdcRepository {
   private readonly vectorStore = new VectorStore();
@@ -10,39 +15,49 @@ export class SemanticCdcRepository extends MarkdownCdcRepository {
 
   constructor(
     private readonly embeddingService: IEmbeddingService,
+    private readonly indexPath = DEFAULT_INDEX_PATH,
     markdownPath = resolve(process.cwd(), "docs", "knowledge", "cdc.md")
   ) {
     super(markdownPath);
   }
 
   /**
-   * Gera embeddings para todos os artigos do CDC e popula o vector store.
-   * Deve ser chamado uma vez na inicialização do servidor.
+   * Carrega o índice pré-computado (cdc-index.json) para o vector store.
+   * Não faz nenhuma chamada de API — os embeddings já foram gerados pelo script rag:index.
    */
   async initialize(): Promise<void> {
-    console.log(`[RAG] Indexando ${this.entries.length} artigos do CDC...`);
+    if (!existsSync(this.indexPath)) {
+      console.warn(
+        `[RAG] Índice não encontrado em ${this.indexPath}.\n` +
+        `      Execute "npm run rag:index" para gerar o índice semântico.\n` +
+        `      Usando busca por keyword como fallback.`
+      );
+      return;
+    }
 
-    for (const entry of this.entries) {
-      const text = `${entry.title} ${entry.body}`;
-      const embedding = await this.embeddingService.embed(text);
-      this.vectorStore.add(entry, embedding);
+    const raw = readFileSync(this.indexPath, "utf-8");
+    const index: IndexEntry[] = JSON.parse(raw);
+
+    for (const item of index) {
+      this.vectorStore.add(item, item.embedding);
     }
 
     this.ready = true;
-    console.log(`[RAG] Indexação concluída. ${this.vectorStore.size} artigos indexados.`);
+    console.log(`[RAG] Índice carregado: ${this.vectorStore.size} artigos prontos (sem chamadas de API).`);
   }
 
   /**
    * Busca artigos semanticamente relacionados à query via cosine similarity.
-   * Fallback para busca por keyword se o repositório não foi inicializado.
+   * Fallback para busca por keyword se o índice não foi carregado.
    */
   override async search(query: string, limit = 3): Promise<KnowledgeHit[]> {
     if (!this.ready) {
-      console.warn("[RAG] Repositório semântico não inicializado, usando busca por keyword.");
+      console.warn("[RAG] Índice semântico não disponível, usando busca por keyword.");
       return super.search(query, limit);
     }
 
     const queryEmbedding = await this.embeddingService.embed(query);
-    return this.vectorStore.search(queryEmbedding, limit);
+    // minScore 0.60: filtra artigos não relacionados mas aceita perguntas específicas sobre direitos
+    return this.vectorStore.search(queryEmbedding, limit, 0.60);
   }
 }

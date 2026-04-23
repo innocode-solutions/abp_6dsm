@@ -23,22 +23,18 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
 
 
   describe("First Message - Menu Display", () => {
-    it("deve exibir menu quando primeira mensagem é genérica ('oi')", async () => {
+    it("deve responder com mensagem de não entendimento quando primeira mensagem é genérica ('oi')", async () => {
       const response = await processor.processIncomingMessage("user1", "oi");
 
-      expect(response).toContain("Olá! Sou o ProconBot Jacareí");
-      expect(response).toContain("1.");
-      expect(response).toContain("2.");
-      expect(response).toContain("3.");
-      expect(response).toContain("4.");
-      expect(response).toContain("5.");
+      expect(response).toContain("Não entendi sua mensagem");
+      expect(response).toContain("menu");
     });
 
-    it("deve exibir menu quando primeira mensagem não dá match", async () => {
+    it("deve responder com mensagem de não entendimento quando primeira mensagem não dá match", async () => {
       const response = await processor.processIncomingMessage("user2", "xyz123");
 
-      expect(response).toContain("Olá! Sou o ProconBot Jacareí");
-      expect(response).toContain("1.");
+      expect(response).toContain("Não entendi sua mensagem");
+      expect(response).toContain("menu");
     });
   });
 

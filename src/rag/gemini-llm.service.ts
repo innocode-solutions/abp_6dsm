@@ -1,16 +1,37 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { ILlmService } from "./llm.interface";
 
-export class GeminiLlmService implements ILlmService {
-  private readonly client: GoogleGenerativeAI;
+const LLM_MODEL = "gemini-2.5-flash";
+const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
-  constructor(apiKey: string) {
-    this.client = new GoogleGenerativeAI(apiKey);
-  }
+type ApiError = { error?: { message?: string } };
+
+export class GeminiLlmService implements ILlmService {
+  constructor(private readonly apiKey: string) {}
 
   async generate(prompt: string): Promise<string> {
-    const model = this.client.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const result = await model.generateContent(prompt);
-    return result.response.text();
+    const url = `${API_BASE}/${LLM_MODEL}:generateContent?key=${this.apiKey}`;
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }]
+      })
+    });
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({}))) as ApiError;
+      throw new Error(
+        `[GeminiLLM] ${response.status} ${response.statusText}: ${
+          error.error?.message ?? "unknown error"
+        }`
+      );
+    }
+
+    const data = (await response.json()) as {
+      candidates: Array<{ content: { parts: Array<{ text: string }> } }>;
+    };
+
+    return data.candidates[0].content.parts[0].text;
   }
 }

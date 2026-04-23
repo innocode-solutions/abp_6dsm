@@ -96,8 +96,11 @@ export class MessageProcessorService implements IMessageProcessor {
       return knowledgeAnswer;
     }
 
-    // No match found - show menu
-    return getFlowsAsMenu(flowRegistry).menu;
+    // Mensagem não reconhecida — orienta sem forçar o menu
+    return (
+      "Não entendi sua mensagem. Pode reformular sua pergunta?\n\n" +
+      "Se desejar ver as opções disponíveis, digite *menu*."
+    );
   }
 
   private formatStep(question: string, options?: FlowOption[]): string {
