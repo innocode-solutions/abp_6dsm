@@ -197,6 +197,66 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
       expect(response).toContain("Código de Defesa do Consumidor");
       expect(response).toContain("Art. 42 - Cobrança indevida");
       expect(response).toContain("devolução em dobro");
+      // Toda resposta RAG deve ter o lembrete do menu
+      expect(response).toContain("menu");
+    });
+  });
+
+  describe("Help Request - 'me ajuda' e similares", () => {
+    it("deve mostrar o menu quando usuário digita 'me ajuda'", async () => {
+      const response = await processor.processIncomingMessage("user-help1", "me ajuda");
+
+      expect(response).toContain("Olá! Sou o ProconBot Jacareí");
+      expect(response).toContain("1.");
+    });
+
+    it("deve mostrar o menu quando usuário digita 'preciso de ajuda'", async () => {
+      const response = await processor.processIncomingMessage("user-help2", "preciso de ajuda");
+
+      expect(response).toContain("Olá! Sou o ProconBot Jacareí");
+    });
+
+    it("deve mostrar o menu e encerrar sessão quando usuário pede ajuda durante um fluxo", async () => {
+      const user = "user-help3";
+
+      // Iniciar fluxo
+      let response = await processor.processIncomingMessage(user, "1");
+      expect(response).toContain("Você reconhece ou contratou essa cobrança?");
+
+      // Pedir ajuda genérica dentro do fluxo
+      response = await processor.processIncomingMessage(user, "me ajuda");
+      expect(response).toContain("Olá! Sou o ProconBot Jacareí");
+
+      // Sessão deve ter sido encerrada — próxima mensagem começa do zero
+      response = await processor.processIncomingMessage(user, "menu");
+      expect(response).toContain("Olá! Sou o ProconBot Jacareí");
+    });
+
+    it("não deve interceptar consulta jurídica longa com 'ajuda'", async () => {
+      // 5 palavras → não é pedido de ajuda de navegação
+      const response = await processor.processIncomingMessage(
+        "user-help4",
+        "preciso de ajuda com produto defeituoso"
+      );
+
+      // Não deve mostrar o menu direto (vai para RAG ou "não entendi")
+      // O importante é não mostrar o menu de forma inesperada
+      expect(response).not.toContain("Olá! Sou o ProconBot Jacareí");
+    });
+  });
+
+  describe("Menu reminder em todas as respostas", () => {
+    it("deve incluir lembrete do menu em perguntas do fluxo", async () => {
+      const response = await processor.processIncomingMessage("user-reminder1", "1");
+
+      expect(response).toContain("menu");
+      expect(response).toContain("Você reconhece ou contratou essa cobrança?");
+    });
+
+    it("deve incluir lembrete do menu na mensagem de não-entendimento", async () => {
+      const response = await processor.processIncomingMessage("user-reminder2", "xyz");
+
+      expect(response).toContain("menu");
     });
   });
 });

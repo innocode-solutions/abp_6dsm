@@ -8,6 +8,12 @@ import { IMessageProcessor } from "./message-processor.interface";
 
 
 
+/** Lembrete fixo adicionado ao rodapé de todas as respostas do bot. */
+const MENU_REMINDER = "\n\n_Digite *menu* a qualquer momento para voltar ao menu principal._";
+
+/** Termos que indicam pedido de ajuda/navegação (sem consulta jurídica). */
+const HELP_TERMS = new Set(["ajuda", "ajude", "ajudar", "socorro", "orientar", "orientacao"]);
+
 export class MessageProcessorService implements IMessageProcessor {
   constructor(
     private flowEngine: IFlowEngine,
@@ -23,6 +29,12 @@ export class MessageProcessorService implements IMessageProcessor {
     if (existingSession) {
       // Check if user wants to return to menu
       if (body.trim().toLowerCase() === "menu" || body.trim().toLowerCase() === "0") {
+        this.sessionStore.clear(from);
+        return getFlowsAsMenu(flowRegistry).menu;
+      }
+
+      // Pedido genérico de ajuda dentro de um fluxo → mostra menu e encerra sessão
+      if (this.isHelpRequest(body)) {
         this.sessionStore.clear(from);
         return getFlowsAsMenu(flowRegistry).menu;
       }
@@ -89,30 +101,51 @@ export class MessageProcessorService implements IMessageProcessor {
       return this.formatStep(firstStep.question, firstStep.options);
     }
 
+    // Pedido genérico de ajuda sem sessão ativa → mostra o menu
+    if (this.isHelpRequest(body)) {
+      return getFlowsAsMenu(flowRegistry).menu;
+    }
+
     // No flow match - try legal knowledge base via RAG
     const knowledgeAnswer = await this.knowledgeService?.findAnswer(body);
 
     if (knowledgeAnswer) {
-      return knowledgeAnswer;
+      return knowledgeAnswer + MENU_REMINDER;
     }
 
     // Mensagem não reconhecida — orienta sem forçar o menu
-    return (
-      "Não entendi sua mensagem. Pode reformular sua pergunta?\n\n" +
-      "Se desejar ver as opções disponíveis, digite *menu*."
-    );
+    return "Não entendi sua mensagem. Pode reformular sua pergunta?" + MENU_REMINDER;
+  }
+
+  /**
+   * Detecta pedidos curtos de ajuda/navegação ("me ajuda", "preciso de ajuda",
+   * "socorro") para distingui-los de perguntas jurídicas reais.
+   * Limita a 4 palavras para não interceptar consultas como
+   * "preciso de ajuda com produto defeituoso".
+   */
+  private isHelpRequest(body: string): boolean {
+    const normalized = body
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z\s]/g, "")
+      .trim();
+    const words = normalized.split(/\s+/).filter((w) => w.length > 0);
+    if (words.length > 4) return false;
+    return words.some((w) => HELP_TERMS.has(w));
   }
 
   private formatStep(question: string, options?: FlowOption[]): string {
     if (!options?.length) {
-      return question;
+      return question + MENU_REMINDER;
     }
 
     const formattedOptions = options
       .map((option, index) => `${index + 1}. ${option.label}`)
       .join("\n");
 
-    return `${question}\n\n${formattedOptions}`;
+    return `${question}\n\n${formattedOptions}${MENU_REMINDER}`;
   }
 
   private formatCompletedResponse(response: FlowResponse): string {
@@ -130,6 +163,6 @@ export class MessageProcessorService implements IMessageProcessor {
       text += `\n\n${response.disclaimer}`;
     }
 
-    return text;
+    return text + MENU_REMINDER;
   }
 }
