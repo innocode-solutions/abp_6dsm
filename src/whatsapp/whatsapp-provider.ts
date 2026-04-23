@@ -1,5 +1,7 @@
+import mongoose from "mongoose";
 import qrcode from "qrcode-terminal";
-import { Client, LocalAuth, Message } from "whatsapp-web.js";
+import { Client, LocalAuth, RemoteAuth, Message } from "whatsapp-web.js";
+import { MongoWhatsappStore } from "./mongo-whatsapp-store";
 import { IncomingMessage, MessagingProvider } from "../types/messaging";
 
 export class WhatsAppProvider implements MessagingProvider {
@@ -27,10 +29,7 @@ export class WhatsAppProvider implements MessagingProvider {
     );
 
     this.client = new Client({
-      authStrategy: new LocalAuth({
-        clientId: "proconbot-jacarei",
-        dataPath: this.authPath
-      }),
+      authStrategy: this.buildAuthStrategy(),
       ...(this.pairingPhoneNumber
         ? {
             pairWithPhoneNumber: {
@@ -65,6 +64,33 @@ export class WhatsAppProvider implements MessagingProvider {
 
     this.registerEvents();
     this.wrapPairingCodeRequest();
+  }
+
+  /**
+   * Seleciona a estratégia de autenticação:
+   * - MongoDB conectado → RemoteAuth + MongoWhatsappStore
+   *   (sessão persiste no banco entre deploys no Railway)
+   * - Sem MongoDB → LocalAuth
+   *   (sessão gravada em disco, adequado para desenvolvimento local)
+   */
+  private buildAuthStrategy(): LocalAuth | RemoteAuth {
+    if (mongoose.connection.readyState === 1) {
+      console.log(
+        "[WhatsApp] MongoDB conectado — usando RemoteAuth (sessão persistida no banco)."
+      );
+      return new RemoteAuth({
+        clientId: "proconbot-jacarei",
+        dataPath: this.authPath,
+        store: new MongoWhatsappStore(),
+        backupSyncIntervalMs: 300_000 // sincroniza a cada 5 min
+      });
+    }
+
+    console.log("[WhatsApp] Sem MongoDB — usando LocalAuth (sessão em disco).");
+    return new LocalAuth({
+      clientId: "proconbot-jacarei",
+      dataPath: this.authPath
+    });
   }
 
   async initialize(): Promise<void> {

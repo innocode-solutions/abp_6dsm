@@ -3,6 +3,8 @@ import mongoose, { type ConnectOptions } from "mongoose";
 import { getMongoEnv } from "./env";
 import "./models/chat-message.model";
 import "./models/chat-session.model";
+import "./models/rag-index.model";
+import "./models/whatsapp-session.model";
 
 let didConnect = false;
 

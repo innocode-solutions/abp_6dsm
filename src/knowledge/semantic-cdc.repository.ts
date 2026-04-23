@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import mongoose from "mongoose";
 import type { IEmbeddingService } from "../rag/embedding.interface";
 import { VectorStore } from "../rag/vector-store";
 import type { KnowledgeEntry, KnowledgeHit } from "./knowledge-entry";
@@ -22,11 +23,26 @@ export class SemanticCdcRepository extends MarkdownCdcRepository {
   }
 
   /**
-   * Carrega o índice pré-computado (cdc-index.json) para o vector store.
-   * Não faz nenhuma chamada de API — os embeddings já foram gerados pelo script rag:index.
-   * Artigos vetados são descartados aqui mesmo, independente do que estiver no JSON.
+   * Carrega o índice semântico para o vector store.
+   *
+   * Prioridade:
+   *  1. MongoDB (se conectado e com dados) — permite regenerar o índice no
+   *     Railway sem precisar commitar um novo JSON.
+   *  2. Arquivo cdc-index.json (fallback) — pré-computado localmente e
+   *     commitado no repositório.
+   *
+   * Nunca faz chamadas à API de embeddings — os vetores já foram gerados
+   * pelo script `npm run rag:index`.
    */
   async initialize(): Promise<void> {
+    // 1. Tentar MongoDB se a conexão estiver ativa
+    if (mongoose.connection.readyState === 1) {
+      const loaded = await this.tryLoadFromMongo();
+      if (loaded) return;
+      console.warn("[RAG] MongoDB conectado mas sem índice — tentando arquivo local.");
+    }
+
+    // 2. Fallback: arquivo JSON pré-computado commitado no repositório
     if (!existsSync(this.indexPath)) {
       console.warn(
         `[RAG] Índice não encontrado em ${this.indexPath}.\n` +
@@ -50,10 +66,40 @@ export class SemanticCdcRepository extends MarkdownCdcRepository {
 
     this.ready = true;
     console.log(
-      `[RAG] Índice carregado: ${this.vectorStore.size} artigos prontos` +
+      `[RAG] Índice carregado do arquivo: ${this.vectorStore.size} artigos prontos` +
       (skipped > 0 ? ` (${skipped} vetados ignorados)` : "") +
       ` — sem chamadas de API.`
     );
+  }
+
+  /** Tenta carregar o índice do MongoDB. Retorna true se carregou com sucesso. */
+  private async tryLoadFromMongo(): Promise<boolean> {
+    try {
+      // Import dinâmico evita problemas de registro do modelo em contextos de teste
+      const { RagIndexEntryModel } = await import("../database/models/rag-index.model");
+      const entries = await RagIndexEntryModel.find({}).lean();
+
+      if (entries.length === 0) return false;
+
+      let skipped = 0;
+      for (const e of entries) {
+        if (/\(vetado\)/i.test(e.title)) { skipped++; continue; }
+        this.vectorStore.add(
+          { id: e.entryId, title: e.title, body: e.body },
+          e.embedding
+        );
+      }
+
+      this.ready = true;
+      console.log(
+        `[RAG] Índice carregado do MongoDB: ${this.vectorStore.size} artigos prontos` +
+        (skipped > 0 ? ` (${skipped} vetados ignorados)` : "") + `.`
+      );
+      return true;
+    } catch (err) {
+      console.warn("[RAG] Erro ao carregar índice do MongoDB:", err);
+      return false;
+    }
   }
 
   /**
