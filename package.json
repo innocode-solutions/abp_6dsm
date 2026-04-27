@@ -2,19 +2,21 @@
   "name": "abp_6dsm",
   "version": "1.0.0",
   "description": "<span id=\"topo\"></span>",
-  "main": "index.js",
+  "main": "dist/src/server.js",
   "directories": {
     "doc": "docs",
     "test": "tests"
   },
   "scripts": {
     "test": "vitest",
+    "start": "node dist/src/server.js",
     "test:run": "vitest run",
     "build": "tsc",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
     "dev": "tsx src/server.ts",
     "db:ping": "tsx src/database/scripts/ping.ts",
-    "db:seed-sample": "tsx src/database/scripts/seed-sample.ts"
+    "db:seed-sample": "tsx src/database/scripts/seed-sample.ts",
+    "rag:index": "tsx src/rag/build-index.ts"
   },
   "repository": {
     "type": "git",
@@ -37,6 +39,7 @@
     "vitest": "^4.1.0"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "dotenv": "^16.4.7",
     "mongoose": "^8.9.5",
     "qrcode-terminal": "^0.12.0",

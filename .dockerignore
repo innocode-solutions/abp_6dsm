@@ -1,0 +1,14 @@
+node_modules
+dist
+.git
+.github
+.env
+.env.*
+!.env.example
+*.md
+!docs/knowledge/cdc.md
+coverage
+.vscode
+.cursor
+**/*.test.ts
+tests
