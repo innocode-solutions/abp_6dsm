@@ -5,6 +5,29 @@ import { FlowMatcher } from "../../src/flows/flow-matcher";
 import { KnowledgeService } from "../../src/knowledge/knowledge-service";
 import type { IKnowledgeRepository } from "../../src/knowledge/knowledge-repository.interface";
 import { InMemorySessionStore } from "../../src/sessions/in-memory-session-store";
+import type { ISessionStore } from "../../src/sessions/session-store.interface";
+import type { UserFlowSession } from "../../src/sessions/user-flow-session";
+
+class SpySessionStore implements ISessionStore {
+  private sessions = new Map<string, UserFlowSession>();
+
+  saveCalls = 0;
+  clearCalls = 0;
+
+  async get(userId: string): Promise<UserFlowSession | null> {
+    return this.sessions.get(userId) ?? null;
+  }
+
+  async save(session: UserFlowSession): Promise<void> {
+    this.saveCalls += 1;
+    this.sessions.set(session.userId, session);
+  }
+
+  async clear(userId: string): Promise<void> {
+    this.clearCalls += 1;
+    this.sessions.delete(userId);
+  }
+}
 
 describe("MessageProcessorService - Menu and Numeric Selection", () => {
   let processor: MessageProcessorService;
@@ -257,6 +280,83 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
       const response = await processor.processIncomingMessage("user-reminder2", "xyz");
 
       expect(response).toContain("menu");
+    });
+  });
+
+  describe("PersistÃªncia de sessÃ£o", () => {
+    it("deve salvar a sessÃ£o ao iniciar um fluxo", async () => {
+      const sessionStore = new SpySessionStore();
+      const processorWithSpyStore = new MessageProcessorService(
+        new FlowEngine(),
+        new FlowMatcher(),
+        sessionStore,
+        new KnowledgeService(knowledgeRepositoryMock)
+      );
+
+      await processorWithSpyStore.processIncomingMessage("user-session-1", "1");
+
+      const savedSession = await sessionStore.get("user-session-1");
+      expect(sessionStore.saveCalls).toBe(1);
+      expect(savedSession).not.toBeNull();
+      expect(savedSession?.flowId).toBe("cobranca_indevida");
+      expect(savedSession?.flowSession.currentStepIndex).toBe(0);
+      expect(savedSession?.flowSession.answers).toEqual({});
+    });
+
+    it("deve recuperar e atualizar a sessÃ£o existente conforme o fluxo avanÃ§a", async () => {
+      const sessionStore = new SpySessionStore();
+      const processorWithSpyStore = new MessageProcessorService(
+        new FlowEngine(),
+        new FlowMatcher(),
+        sessionStore,
+        new KnowledgeService(knowledgeRepositoryMock)
+      );
+
+      await processorWithSpyStore.processIncomingMessage("user-session-2", "5");
+      await processorWithSpyStore.processIncomingMessage("user-session-2", "1");
+
+      const updatedSession = await sessionStore.get("user-session-2");
+      expect(sessionStore.saveCalls).toBe(2);
+      expect(updatedSession).not.toBeNull();
+      expect(updatedSession?.flowSession.currentStepIndex).toBe(1);
+      expect(updatedSession?.flowId).toBe("garantia_produto");
+      expect(updatedSession?.flowSession.answers).toMatchObject({
+        produto_com_defeito: "sim"
+      });
+    });
+
+    it("deve remover a sessÃ£o ao finalizar o atendimento", async () => {
+      const sessionStore = new SpySessionStore();
+      const processorWithSpyStore = new MessageProcessorService(
+        new FlowEngine(),
+        new FlowMatcher(),
+        sessionStore,
+        new KnowledgeService(knowledgeRepositoryMock)
+      );
+
+      await processorWithSpyStore.processIncomingMessage("user-session-3", "1");
+      await processorWithSpyStore.processIncomingMessage("user-session-3", "2");
+
+      const finishedSession = await sessionStore.get("user-session-3");
+      expect(sessionStore.clearCalls).toBe(1);
+      expect(finishedSession).toBeNull();
+    });
+
+    it("deve remover a sessÃ£o ao receber 'menu' durante o atendimento", async () => {
+      const sessionStore = new SpySessionStore();
+      const processorWithSpyStore = new MessageProcessorService(
+        new FlowEngine(),
+        new FlowMatcher(),
+        sessionStore,
+        new KnowledgeService(knowledgeRepositoryMock)
+      );
+
+      await processorWithSpyStore.processIncomingMessage("user-session-4", "1");
+      await processorWithSpyStore.processIncomingMessage("user-session-4", "menu");
+
+      const clearedSession = await sessionStore.get("user-session-4");
+      expect(sessionStore.clearCalls).toBe(1);
+      expect(clearedSession).toBeNull();
     });
   });
 });

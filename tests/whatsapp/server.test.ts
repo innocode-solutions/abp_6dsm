@@ -1,16 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { bootstrap } from "../../src/server";
 
-const startMock = vi.fn();
-const messageProcessorConstructorSpy = vi.fn();
-const markdownRepositoryConstructorSpy = vi.fn();
-const semanticRepositoryConstructorSpy = vi.fn();
-const semanticRepositoryInitializeSpy = vi.fn().mockResolvedValue(undefined);
-const knowledgeServiceConstructorSpy = vi.fn();
+const mocks = vi.hoisted(() => ({
+  startMock: vi.fn(),
+  messageProcessorConstructorSpy: vi.fn(),
+  connectMongoMock: vi.fn().mockResolvedValue(undefined),
+  isMongoConfiguredMock: vi.fn(),
+  markdownRepositoryConstructorSpy: vi.fn(),
+  semanticRepositoryConstructorSpy: vi.fn(),
+  semanticRepositoryInitializeSpy: vi.fn().mockResolvedValue(undefined),
+  knowledgeServiceConstructorSpy: vi.fn(),
+  inMemorySessionStoreConstructorSpy: vi.fn(),
+  mongoSessionStoreConstructorSpy: vi.fn()
+}));
+
+vi.mock("../../src/database/connection", () => ({
+  connectMongo: mocks.connectMongoMock,
+  isMongoConfigured: mocks.isMongoConfiguredMock
+}));
 
 vi.mock("../../src/bot/bot", () => {
   class MockProconBot {
-    start = startMock;
+    start = mocks.startMock;
   }
 
   return {
@@ -34,7 +45,7 @@ vi.mock("../../src/messages/message-processor.service", () => {
       sessionStore: unknown,
       knowledgeService: unknown
     ) {
-      messageProcessorConstructorSpy(flowEngine, flowMatcher, sessionStore, knowledgeService);
+      mocks.messageProcessorConstructorSpy(flowEngine, flowMatcher, sessionStore, knowledgeService);
     }
   }
 
@@ -46,20 +57,20 @@ vi.mock("../../src/messages/message-processor.service", () => {
 vi.mock("../../src/knowledge", () => {
   class MockMarkdownCdcRepository {
     constructor() {
-      markdownRepositoryConstructorSpy();
+      mocks.markdownRepositoryConstructorSpy();
     }
   }
 
   class MockSemanticCdcRepository {
     constructor(embeddingService: unknown) {
-      semanticRepositoryConstructorSpy(embeddingService);
+      mocks.semanticRepositoryConstructorSpy(embeddingService);
     }
-    initialize = semanticRepositoryInitializeSpy;
+    initialize = mocks.semanticRepositoryInitializeSpy;
   }
 
   class MockKnowledgeService {
     constructor(repository: unknown, llmService?: unknown) {
-      knowledgeServiceConstructorSpy(repository, llmService);
+      mocks.knowledgeServiceConstructorSpy(repository, llmService);
     }
   }
 
@@ -85,10 +96,35 @@ vi.mock("../../src/rag", () => {
   };
 });
 
+vi.mock("../../src/sessions/in-memory-session-store", () => {
+  class MockInMemorySessionStore {
+    constructor() {
+      mocks.inMemorySessionStoreConstructorSpy();
+    }
+  }
+
+  return {
+    InMemorySessionStore: MockInMemorySessionStore
+  };
+});
+
+vi.mock("../../src/sessions/mongo-session-store", () => {
+  class MockMongoSessionStore {
+    constructor() {
+      mocks.mongoSessionStoreConstructorSpy();
+    }
+  }
+
+  return {
+    MongoSessionStore: MockMongoSessionStore
+  };
+});
+
 describe("server bootstrap", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.NODE_ENV = "test";
+    mocks.isMongoConfiguredMock.mockReturnValue(false);
   });
 
   it("deve inicializar o bot", async () => {
@@ -96,7 +132,7 @@ describe("server bootstrap", () => {
 
     await bootstrap();
 
-    expect(startMock).toHaveBeenCalledTimes(1);
+    expect(mocks.startMock).toHaveBeenCalledTimes(1);
   });
 
   describe("sem GEMINI_API_KEY (fallback keyword)", () => {
@@ -107,12 +143,16 @@ describe("server bootstrap", () => {
     it("deve usar MarkdownCdcRepository e injetar no MessageProcessorService", async () => {
       await bootstrap();
 
-      expect(markdownRepositoryConstructorSpy).toHaveBeenCalledTimes(1);
-      expect(semanticRepositoryConstructorSpy).not.toHaveBeenCalled();
-      expect(knowledgeServiceConstructorSpy).toHaveBeenCalledTimes(1);
-      expect(messageProcessorConstructorSpy).toHaveBeenCalledTimes(1);
+      expect(mocks.markdownRepositoryConstructorSpy).toHaveBeenCalledTimes(1);
+      expect(mocks.semanticRepositoryConstructorSpy).not.toHaveBeenCalled();
+      expect(mocks.knowledgeServiceConstructorSpy).toHaveBeenCalledTimes(1);
+      expect(mocks.messageProcessorConstructorSpy).toHaveBeenCalledTimes(1);
+      expect(mocks.inMemorySessionStoreConstructorSpy).toHaveBeenCalledTimes(1);
+      expect(mocks.mongoSessionStoreConstructorSpy).not.toHaveBeenCalled();
 
-      const knowledgeServiceArg = messageProcessorConstructorSpy.mock.calls[0][3];
+      const sessionStoreArg = mocks.messageProcessorConstructorSpy.mock.calls[0][2];
+      const knowledgeServiceArg = mocks.messageProcessorConstructorSpy.mock.calls[0][3];
+      expect(sessionStoreArg).toBeDefined();
       expect(knowledgeServiceArg).toBeDefined();
     });
   });
@@ -129,18 +169,28 @@ describe("server bootstrap", () => {
     it("deve usar SemanticCdcRepository e inicializar o RAG", async () => {
       await bootstrap();
 
-      expect(semanticRepositoryConstructorSpy).toHaveBeenCalledTimes(1);
-      expect(semanticRepositoryInitializeSpy).toHaveBeenCalledTimes(1);
-      expect(markdownRepositoryConstructorSpy).not.toHaveBeenCalled();
-      expect(knowledgeServiceConstructorSpy).toHaveBeenCalledTimes(1);
-      expect(messageProcessorConstructorSpy).toHaveBeenCalledTimes(1);
+      expect(mocks.semanticRepositoryConstructorSpy).toHaveBeenCalledTimes(1);
+      expect(mocks.semanticRepositoryInitializeSpy).toHaveBeenCalledTimes(1);
+      expect(mocks.markdownRepositoryConstructorSpy).not.toHaveBeenCalled();
+      expect(mocks.knowledgeServiceConstructorSpy).toHaveBeenCalledTimes(1);
+      expect(mocks.messageProcessorConstructorSpy).toHaveBeenCalledTimes(1);
     });
 
     it("deve passar LLM service ao KnowledgeService no modo RAG", async () => {
       await bootstrap();
 
-      const [_repository, llmService] = knowledgeServiceConstructorSpy.mock.calls[0];
+      const [_repository, llmService] = mocks.knowledgeServiceConstructorSpy.mock.calls[0];
       expect(llmService).toBeDefined();
     });
+  });
+
+  it("deve usar MongoSessionStore quando estiver fora de teste e o MongoDB conectar", async () => {
+    process.env.NODE_ENV = "production";
+    mocks.isMongoConfiguredMock.mockReturnValue(true);
+
+    await bootstrap();
+
+    expect(mocks.connectMongoMock).toHaveBeenCalledTimes(1);
+    expect(mocks.mongoSessionStoreConstructorSpy).toHaveBeenCalledTimes(1);
   });
 });

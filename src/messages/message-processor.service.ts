@@ -23,26 +23,26 @@ export class MessageProcessorService implements IMessageProcessor {
   ) {}
 
   async processIncomingMessage(from: string, body: string): Promise<string> {
-    const existingSession = this.sessionStore.get(from);
+    const existingSession = await this.sessionStore.get(from);
 
     // If user is in an active flow session, check for return-to-menu command first
     if (existingSession) {
       // Check if user wants to return to menu
       if (body.trim().toLowerCase() === "menu" || body.trim().toLowerCase() === "0") {
-        this.sessionStore.clear(from);
+        await this.sessionStore.clear(from);
         return getFlowsAsMenu(flowRegistry).menu;
       }
 
       // Pedido genérico de ajuda dentro de um fluxo → mostra menu e encerra sessão
       if (this.isHelpRequest(body)) {
-        this.sessionStore.clear(from);
+        await this.sessionStore.clear(from);
         return getFlowsAsMenu(flowRegistry).menu;
       }
 
       const flow = flowRegistry.find((item) => item.id === existingSession.flowId);
 
       if (!flow) {
-        this.sessionStore.clear(from);
+        await this.sessionStore.clear(from);
         return "Não consegui continuar seu atendimento. Vamos começar novamente.";
       }
 
@@ -53,11 +53,11 @@ export class MessageProcessorService implements IMessageProcessor {
       );
 
       if (result.type === "step") {
-        this.sessionStore.save(existingSession);
+        await this.sessionStore.save(existingSession);
         return this.formatStep(result.step.question, result.step.options);
       }
 
-      this.sessionStore.clear(from);
+      await this.sessionStore.clear(from);
       return this.formatCompletedResponse(result.response);
     }
 
@@ -85,7 +85,7 @@ export class MessageProcessorService implements IMessageProcessor {
       const matchedFlow = matchResult as FlowDefinition;
       const flowSession = this.flowEngine.start(matchedFlow);
 
-      this.sessionStore.save({
+      await this.sessionStore.save({
         userId: from,
         flowId: matchedFlow.id,
         flowSession
@@ -94,7 +94,7 @@ export class MessageProcessorService implements IMessageProcessor {
       const firstStep = this.flowEngine.getCurrentStep(matchedFlow, flowSession);
 
       if (!firstStep) {
-        this.sessionStore.clear(from);
+        await this.sessionStore.clear(from);
         return "Não foi possível iniciar o atendimento. Tente novamente.";
       }
 

@@ -14,6 +14,8 @@ import { MessageLogService } from "./messages/message-log.service";
 import { MessageProcessorService } from "./messages/message-processor.service";
 import { GeminiEmbeddingService, GeminiLlmService } from "./rag";
 import { InMemorySessionStore } from "./sessions/in-memory-session-store";
+import { MongoSessionStore } from "./sessions/mongo-session-store";
+import { ISessionStore } from "./sessions/session-store.interface";
 import { WhatsAppProvider } from "./whatsapp/whatsapp-provider";
 
 import { IHistoryRepository } from "./messages/history";
@@ -44,10 +46,19 @@ process.on("uncaughtException", (error) => {
 export async function bootstrap(): Promise<void> {
   try {
     let historyRepository: IHistoryRepository | undefined;
+    let sessionStore: ISessionStore = new InMemorySessionStore();
 
     if (process.env.NODE_ENV !== "test" && isMongoConfigured()) {
-      await connectMongo();
-      historyRepository = new MongoHistoryRepository();
+      try {
+        await connectMongo();
+        historyRepository = new MongoHistoryRepository();
+        sessionStore = new MongoSessionStore();
+      } catch (error) {
+        console.warn(
+          "Falha ao conectar no MongoDB: persistência em MongoDB desabilitada. Usando sessão em memória."
+        );
+        logFatalError("Conexao MongoDB", error);
+      }
     } else if (process.env.NODE_ENV !== "test" && !isMongoConfigured()) {
       console.warn(
         "MONGODB_URI não definido: persistência em MongoDB desabilitada. Defina a variável para ativar."
@@ -59,7 +70,6 @@ export async function bootstrap(): Promise<void> {
 
     const flowEngine = new FlowEngine();
     const flowMatcher = new FlowMatcher();
-    const sessionStore = new InMemorySessionStore();
 
     // RAG: usa busca semântica + LLM se GEMINI_API_KEY estiver configurada
     const geminiApiKey = process.env.GEMINI_API_KEY;
