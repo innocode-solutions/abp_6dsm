@@ -4,7 +4,8 @@ import { ProconBot } from "./bot/bot";
 import { connectMongo, isMongoConfigured } from "./database/connection";
 import { MongoHistoryRepository } from "./database/repositories/mongo-history-repository";
 import { FlowEngine } from "./engine/flow-engine";
-import { FlowMatcher } from "./flows/flow-matcher";
+import { FlowExtractionOrchestrator } from "./flows/flow-matcher";
+import { flowRegistry } from "./flows/flow-registry";
 import {
   KnowledgeService,
   MarkdownCdcRepository,
@@ -16,7 +17,7 @@ import { GeminiEmbeddingService, GeminiLlmService } from "./rag";
 import { InMemorySessionStore } from "./sessions/in-memory-session-store";
 import { WhatsAppProvider } from "./whatsapp/whatsapp-provider";
 
-import { IHistoryRepository } from "./messages/history";
+import type { IHistoryRepository } from "./messages/history";
 
 function logFatalError(origin: string, error: unknown): void {
   if (error instanceof Error) {
@@ -58,7 +59,8 @@ export async function bootstrap(): Promise<void> {
     const logService = new MessageLogService(historyRepository);
 
     const flowEngine = new FlowEngine();
-    const flowMatcher = new FlowMatcher();
+    const flowMatcher = new FlowExtractionOrchestrator(flowRegistry);
+    await flowMatcher.initialize();
     const sessionStore = new InMemorySessionStore();
 
     // RAG: usa busca semântica + LLM se GEMINI_API_KEY estiver configurada

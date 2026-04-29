@@ -6,13 +6,19 @@ import { ISessionStore } from "../sessions/session-store.interface";
 import type { FlowDefinition, FlowOption, FlowResponse } from "../types/flow";
 import { IMessageProcessor } from "./message-processor.interface";
 
-
-
 /** Lembrete fixo adicionado ao rodapé de todas as respostas do bot. */
-const MENU_REMINDER = "\n\n_Digite *menu* a qualquer momento para voltar ao menu principal._";
+const MENU_REMINDER =
+  "\n\n_Digite *menu* a qualquer momento para voltar ao menu principal._";
 
 /** Termos que indicam pedido de ajuda/navegação (sem consulta jurídica). */
-const HELP_TERMS = new Set(["ajuda", "ajude", "ajudar", "socorro", "orientar", "orientacao"]);
+const HELP_TERMS = new Set([
+  "ajuda",
+  "ajude",
+  "ajudar",
+  "socorro",
+  "orientar",
+  "orientacao"
+]);
 
 export class MessageProcessorService implements IMessageProcessor {
   constructor(
@@ -23,17 +29,18 @@ export class MessageProcessorService implements IMessageProcessor {
   ) {}
 
   async processIncomingMessage(from: string, body: string): Promise<string> {
+    return this.dispatchMessage(from, body);
+  }
+
+  private async dispatchMessage(from: string, body: string): Promise<string> {
     const existingSession = this.sessionStore.get(from);
 
-    // If user is in an active flow session, check for return-to-menu command first
     if (existingSession) {
-      // Check if user wants to return to menu
       if (body.trim().toLowerCase() === "menu" || body.trim().toLowerCase() === "0") {
         this.sessionStore.clear(from);
         return getFlowsAsMenu(flowRegistry).menu;
       }
 
-      // Pedido genérico de ajuda dentro de um fluxo → mostra menu e encerra sessão
       if (this.isHelpRequest(body)) {
         this.sessionStore.clear(from);
         return getFlowsAsMenu(flowRegistry).menu;
@@ -61,10 +68,14 @@ export class MessageProcessorService implements IMessageProcessor {
       return this.formatCompletedResponse(result.response);
     }
 
-    // No active session - try to match new flow
-    const matchResult = this.flowMatcher.findByMessage(body, flowRegistry);
+    // Antes do NLU: pedidos curtos de ajuda/navegação não devem abrir fluxo por classificação.
+    if (this.isHelpRequest(body)) {
+      return getFlowsAsMenu(flowRegistry).menu;
+    }
 
-    // Handle invalid menu number
+    const matchOutcome = await this.flowMatcher.findByMessage(body, flowRegistry);
+    const matchResult = matchOutcome.match;
+
     if (matchResult && typeof matchResult === "object" && "type" in matchResult) {
       if (matchResult.type === "invalid_menu_number") {
         const { menu } = getFlowsAsMenu(flowRegistry);
@@ -74,13 +85,11 @@ export class MessageProcessorService implements IMessageProcessor {
         );
       }
 
-      // Handle return-to-menu (shouldn't happen here but just in case)
       if (matchResult.type === "return_to_menu") {
         return getFlowsAsMenu(flowRegistry).menu;
       }
     }
 
-    // If match is a valid flow, start it
     if (matchResult && typeof matchResult === "object" && "id" in matchResult) {
       const matchedFlow = matchResult as FlowDefinition;
       const flowSession = this.flowEngine.start(matchedFlow);
@@ -101,28 +110,15 @@ export class MessageProcessorService implements IMessageProcessor {
       return this.formatStep(firstStep.question, firstStep.options);
     }
 
-    // Pedido genérico de ajuda sem sessão ativa → mostra o menu
-    if (this.isHelpRequest(body)) {
-      return getFlowsAsMenu(flowRegistry).menu;
-    }
-
-    // No flow match - try legal knowledge base via RAG
     const knowledgeAnswer = await this.knowledgeService?.findAnswer(body);
 
     if (knowledgeAnswer) {
       return knowledgeAnswer + MENU_REMINDER;
     }
 
-    // Mensagem não reconhecida — orienta sem forçar o menu
     return "Não entendi sua mensagem. Pode reformular sua pergunta?" + MENU_REMINDER;
   }
 
-  /**
-   * Detecta pedidos curtos de ajuda/navegação ("me ajuda", "preciso de ajuda",
-   * "socorro") para distingui-los de perguntas jurídicas reais.
-   * Limita a 4 palavras para não interceptar consultas como
-   * "preciso de ajuda com produto defeituoso".
-   */
   private isHelpRequest(body: string): boolean {
     const normalized = body
       .trim()

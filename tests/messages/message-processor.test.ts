@@ -1,21 +1,26 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { MessageProcessorService } from "../../src/messages/message-processor.service";
 import { FlowEngine } from "../../src/engine/flow-engine";
+import type { FlowExtractionOrchestrator } from "../../src/flows/flow-matcher";
 import { FlowMatcher } from "../../src/flows/flow-matcher";
+import { flowRegistry } from "../../src/flows/flow-registry";
 import { KnowledgeService } from "../../src/knowledge/knowledge-service";
 import type { IKnowledgeRepository } from "../../src/knowledge/knowledge-repository.interface";
 import { InMemorySessionStore } from "../../src/sessions/in-memory-session-store";
 
 describe("MessageProcessorService - Menu and Numeric Selection", () => {
   let processor: MessageProcessorService;
+  let flowMatcher: FlowExtractionOrchestrator;
   const knowledgeRepositoryMock: IKnowledgeRepository = {
     search: async () => []
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    flowMatcher = new FlowMatcher(flowRegistry);
+    await flowMatcher.initialize();
     processor = new MessageProcessorService(
       new FlowEngine(),
-      new FlowMatcher(),
+      flowMatcher,
       new InMemorySessionStore(),
       new KnowledgeService(knowledgeRepositoryMock)
     );
@@ -171,9 +176,11 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
 
   describe("CDC Knowledge Fallback", () => {
     it("deve responder com base CDC quando não há match de fluxo", async () => {
+      const fm = new FlowMatcher(flowRegistry);
+      await fm.initialize();
       const processorWithKnowledge = new MessageProcessorService(
         new FlowEngine(),
-        new FlowMatcher(),
+        fm,
         new InMemorySessionStore(),
         new KnowledgeService({
           search: async () => [
