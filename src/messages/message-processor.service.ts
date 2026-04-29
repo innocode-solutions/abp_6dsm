@@ -65,11 +65,11 @@ export class MessageProcessorService implements IMessageProcessor {
   }
 
   private async dispatchMessage(from: string, body: string): Promise<DispatchOutcome> {
-    const existingSession = this.sessionStore.get(from);
+    const existingSession = await this.sessionStore.get(from);
 
     if (existingSession) {
       if (body.trim().toLowerCase() === "menu" || body.trim().toLowerCase() === "0") {
-        this.sessionStore.clear(from);
+        await this.sessionStore.clear(from);
         return {
           text: getFlowsAsMenu(flowRegistry).menu,
           nlpClassification: null,
@@ -78,7 +78,7 @@ export class MessageProcessorService implements IMessageProcessor {
       }
 
       if (this.isHelpRequest(body)) {
-        this.sessionStore.clear(from);
+        await this.sessionStore.clear(from);
         return {
           text: getFlowsAsMenu(flowRegistry).menu,
           nlpClassification: null,
@@ -89,7 +89,7 @@ export class MessageProcessorService implements IMessageProcessor {
       const flow = flowRegistry.find((item) => item.id === existingSession.flowId);
 
       if (!flow) {
-        this.sessionStore.clear(from);
+        await this.sessionStore.clear(from);
         return {
           text: "Não consegui continuar seu atendimento. Vamos começar novamente.",
           nlpClassification: null,
@@ -104,7 +104,7 @@ export class MessageProcessorService implements IMessageProcessor {
       );
 
       if (result.type === "step") {
-        this.sessionStore.save(existingSession);
+        await this.sessionStore.save(existingSession);
         return {
           text: this.formatStep(result.step.question, result.step.options),
           nlpClassification: null,
@@ -112,7 +112,7 @@ export class MessageProcessorService implements IMessageProcessor {
         };
       }
 
-      this.sessionStore.clear(from);
+      await this.sessionStore.clear(from);
       return {
         text: this.formatCompletedResponse(result.response),
         nlpClassification: null,
@@ -157,7 +157,7 @@ export class MessageProcessorService implements IMessageProcessor {
       const matchedFlow = matchResult as FlowDefinition;
       const flowSession = this.flowEngine.start(matchedFlow);
 
-      this.sessionStore.save({
+      await this.sessionStore.save({
         userId: from,
         flowId: matchedFlow.id,
         flowSession
@@ -166,7 +166,7 @@ export class MessageProcessorService implements IMessageProcessor {
       const firstStep = this.flowEngine.getCurrentStep(matchedFlow, flowSession);
 
       if (!firstStep) {
-        this.sessionStore.clear(from);
+        await this.sessionStore.clear(from);
         return {
           text: "Não foi possível iniciar o atendimento. Tente novamente.",
           nlpClassification,
