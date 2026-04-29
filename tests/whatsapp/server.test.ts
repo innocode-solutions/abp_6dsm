@@ -32,9 +32,16 @@ vi.mock("../../src/messages/message-processor.service", () => {
       flowEngine: unknown,
       flowMatcher: unknown,
       sessionStore: unknown,
-      knowledgeService: unknown
+      knowledgeService: unknown,
+      entityRepo?: unknown
     ) {
-      messageProcessorConstructorSpy(flowEngine, flowMatcher, sessionStore, knowledgeService);
+      messageProcessorConstructorSpy(
+        flowEngine,
+        flowMatcher,
+        sessionStore,
+        knowledgeService,
+        entityRepo
+      );
     }
   }
 

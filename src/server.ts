@@ -2,6 +2,7 @@ import "dotenv/config";
 
 import { ProconBot } from "./bot/bot";
 import { connectMongo, isMongoConfigured } from "./database/connection";
+import { MongoEntityExtractionRepository } from "./database/repositories/mongo-entity-extraction-repository";
 import { MongoHistoryRepository } from "./database/repositories/mongo-history-repository";
 import { FlowEngine } from "./engine/flow-engine";
 import { FlowExtractionOrchestrator } from "./flows/flow-matcher";
@@ -15,8 +16,10 @@ import { MessageLogService } from "./messages/message-log.service";
 import { MessageProcessorService } from "./messages/message-processor.service";
 import { GeminiEmbeddingService, GeminiLlmService } from "./rag";
 import { InMemorySessionStore } from "./sessions/in-memory-session-store";
+import { MongoConversationSessionIdService } from "./sessions/mongo-conversation-session-id.service";
 import { WhatsAppProvider } from "./whatsapp/whatsapp-provider";
 
+import type { IEntityExtractionRepository } from "./extraction/entity-extraction-repository.interface";
 import type { IHistoryRepository } from "./messages/history";
 
 function logFatalError(origin: string, error: unknown): void {
@@ -45,10 +48,14 @@ process.on("uncaughtException", (error) => {
 export async function bootstrap(): Promise<void> {
   try {
     let historyRepository: IHistoryRepository | undefined;
+    let entityRepository: IEntityExtractionRepository | undefined;
+    let conversationSessionIds: MongoConversationSessionIdService | undefined;
 
     if (process.env.NODE_ENV !== "test" && isMongoConfigured()) {
       await connectMongo();
       historyRepository = new MongoHistoryRepository();
+      entityRepository = new MongoEntityExtractionRepository();
+      conversationSessionIds = new MongoConversationSessionIdService();
     } else if (process.env.NODE_ENV !== "test" && !isMongoConfigured()) {
       console.warn(
         "MONGODB_URI não definido: persistência em MongoDB desabilitada. Defina a variável para ativar."
@@ -87,10 +94,16 @@ export async function bootstrap(): Promise<void> {
       flowEngine,
       flowMatcher,
       sessionStore,
-      knowledgeService
+      knowledgeService,
+      entityRepository
     );
 
-    const bot = new ProconBot(provider, processor, logService);
+    const bot = new ProconBot(
+      provider,
+      processor,
+      logService,
+      conversationSessionIds
+    );
 
     await bot.start();
 
