@@ -19,6 +19,17 @@ vi.mock("../../src/database/connection", () => ({
   isMongoConfigured: mocks.isMongoConfiguredMock
 }));
 
+vi.mock("../../src/flows/flow-matcher", () => {
+  class MockFlowExtractionOrchestrator {
+    initialize = vi.fn().mockResolvedValue(undefined);
+    findByMessage = vi.fn();
+  }
+  return {
+    FlowExtractionOrchestrator: MockFlowExtractionOrchestrator,
+    FlowMatcher: MockFlowExtractionOrchestrator
+  };
+});
+
 vi.mock("../../src/bot/bot", () => {
   class MockProconBot {
     start = mocks.startMock;
@@ -43,9 +54,16 @@ vi.mock("../../src/messages/message-processor.service", () => {
       flowEngine: unknown,
       flowMatcher: unknown,
       sessionStore: unknown,
-      knowledgeService: unknown
+      knowledgeService: unknown,
+      entityRepo?: unknown
     ) {
-      mocks.messageProcessorConstructorSpy(flowEngine, flowMatcher, sessionStore, knowledgeService);
+      mocks.messageProcessorConstructorSpy(
+        flowEngine,
+        flowMatcher,
+        sessionStore,
+        knowledgeService,
+        entityRepo
+      );
     }
   }
 
@@ -124,6 +142,7 @@ describe("server bootstrap", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.NODE_ENV = "test";
+    delete process.env.GEMINI_API_KEY;
     mocks.isMongoConfiguredMock.mockReturnValue(false);
   });
 

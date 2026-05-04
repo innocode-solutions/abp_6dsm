@@ -2,9 +2,11 @@ import "dotenv/config";
 
 import { ProconBot } from "./bot/bot";
 import { connectMongo, isMongoConfigured } from "./database/connection";
+import { MongoEntityExtractionRepository } from "./database/repositories/mongo-entity-extraction-repository";
 import { MongoHistoryRepository } from "./database/repositories/mongo-history-repository";
 import { FlowEngine } from "./engine/flow-engine";
-import { FlowMatcher } from "./flows/flow-matcher";
+import { FlowExtractionOrchestrator } from "./flows/flow-matcher";
+import { flowRegistry } from "./flows/flow-registry";
 import {
   KnowledgeService,
   MarkdownCdcRepository,
@@ -14,11 +16,13 @@ import { MessageLogService } from "./messages/message-log.service";
 import { MessageProcessorService } from "./messages/message-processor.service";
 import { GeminiEmbeddingService, GeminiLlmService } from "./rag";
 import { InMemorySessionStore } from "./sessions/in-memory-session-store";
+import { MongoConversationSessionIdService } from "./sessions/mongo-conversation-session-id.service";
 import { MongoSessionStore } from "./sessions/mongo-session-store";
 import { ISessionStore } from "./sessions/session-store.interface";
 import { WhatsAppProvider } from "./whatsapp/whatsapp-provider";
 
-import { IHistoryRepository } from "./messages/history";
+import type { IEntityExtractionRepository } from "./extraction/entity-extraction-repository.interface";
+import type { IHistoryRepository } from "./messages/history";
 
 function logFatalError(origin: string, error: unknown): void {
   if (error instanceof Error) {
@@ -46,12 +50,16 @@ process.on("uncaughtException", (error) => {
 export async function bootstrap(): Promise<void> {
   try {
     let historyRepository: IHistoryRepository | undefined;
+    let entityRepository: IEntityExtractionRepository | undefined;
+    let conversationSessionIds: MongoConversationSessionIdService | undefined;
     let sessionStore: ISessionStore = new InMemorySessionStore();
 
     if (process.env.NODE_ENV !== "test" && isMongoConfigured()) {
       try {
         await connectMongo();
         historyRepository = new MongoHistoryRepository();
+        entityRepository = new MongoEntityExtractionRepository();
+        conversationSessionIds = new MongoConversationSessionIdService();
         sessionStore = new MongoSessionStore();
       } catch (error) {
         console.warn(
@@ -69,7 +77,8 @@ export async function bootstrap(): Promise<void> {
     const logService = new MessageLogService(historyRepository);
 
     const flowEngine = new FlowEngine();
-    const flowMatcher = new FlowMatcher();
+    const flowMatcher = new FlowExtractionOrchestrator(flowRegistry);
+    await flowMatcher.initialize();
 
     // RAG: usa busca semântica + LLM se GEMINI_API_KEY estiver configurada
     const geminiApiKey = process.env.GEMINI_API_KEY;
@@ -95,10 +104,16 @@ export async function bootstrap(): Promise<void> {
       flowEngine,
       flowMatcher,
       sessionStore,
-      knowledgeService
+      knowledgeService,
+      entityRepository
     );
 
-    const bot = new ProconBot(provider, processor, logService);
+    const bot = new ProconBot(
+      provider,
+      processor,
+      logService,
+      conversationSessionIds
+    );
 
     await bot.start();
 
