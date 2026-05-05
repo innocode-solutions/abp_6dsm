@@ -13,7 +13,7 @@ const flowSessionSchema = new Schema(
 
 /**
  * Uma sessão de conversa ativa por usuário do canal (ex.: WhatsApp).
- * Alinhado a `UserFlowSession` em `in-memory-session-store.ts`.
+ * Alinhado a `UserFlowSession` em `src/sessions/user-flow-session.ts`.
  */
 const chatSessionSchema = new Schema(
   {

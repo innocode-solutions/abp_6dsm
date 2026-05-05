@@ -45,3 +45,16 @@ export interface FlowSession {
   answers: Record<string, string>;
   finished: boolean;
 }
+
+// Tipos para retornos especiais do FlowMatcher
+export interface MatcherInvalidMenuNumber {
+  type: 'invalid_menu_number';
+  attemptedNumber: number;
+  maxOptions: number;
+}
+
+export interface MatcherReturnToMenu {
+  type: 'return_to_menu';
+}
+
+export type FlowMatcherResult = FlowDefinition | MatcherInvalidMenuNumber | MatcherReturnToMenu | null;
