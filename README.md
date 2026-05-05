@@ -129,6 +129,13 @@ Implementar a comunicação via WhatsApp e os primeiros fluxos de atendimento do
 | US08 | RF02, RF03, RF04 | Fluxo direito de arrependimento | 3 |
 | US09 | RF02, RF03, RF04 | Fluxo cancelamento de plano | 3 |
 
+<br>
+
+<div align="center">
+  <p><i>Gráfico de Burndown do Sprint 1</i></p>
+  <img width="1366" height="766" alt="burndown_sprint1" src="https://github.com/user-attachments/assets/31e64479-ff63-4a63-9f79-c9de1b3f69a0" />
+</div>
+
 </details>
 
 <details>
