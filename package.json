@@ -11,13 +11,18 @@
     "test": "vitest",
     "start": "node dist/src/server.js",
     "test:run": "vitest run",
-    "build": "tsc",
+    "build:bot": "tsc",
+    "build:api": "tsc -p tsconfig.api.json",
+    "build": "npm run build:bot && npm run build:api",
     "typecheck": "tsc --noEmit -p tsconfig.test.json",
     "dev": "tsx src/server.ts",
     "db:ping": "tsx src/database/scripts/ping.ts",
     "db:inspect": "tsx src/database/scripts/inspect.ts",
     "db:seed-sample": "tsx src/database/scripts/seed-sample.ts",
-    "rag:index": "tsx src/rag/build-index.ts"
+    "rag:index": "tsx src/rag/build-index.ts",
+    "api:dev": "ts-node-dev --respawn --transpile-only -P tsconfig.api.json src/api/server.ts",
+    "api:build": "npm run build:api",
+    "api:start": "node dist/api/server.js"
   },
   "repository": {
     "type": "git",
@@ -32,16 +37,22 @@
   },
   "homepage": "https://github.com/innocode-solutions/abp_6dsm#readme",
   "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
     "@types/node": "^25.5.0",
     "@types/qrcode-terminal": "^0.12.2",
     "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
     "mongoose": "^8.9.5",
     "node-nlp": "^5.0.0-alpha.5",
     "qrcode-terminal": "^0.12.0",
