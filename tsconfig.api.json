@@ -4,6 +4,6 @@
     "rootDir": "src/api",
     "outDir": "dist/api"
   },
-  "include": ["src/api/**/*.ts"],
+  "include": ["src/api/**/*.ts", "src/api/**/*.d.ts"],
   "exclude": ["node_modules", "dist"]
 }
