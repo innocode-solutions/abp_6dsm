@@ -25,14 +25,14 @@ function readPort(): number {
 
 export interface AppEnv {
   PORT: number;
-  MONGO_URI: string;
+  MONGODB_URI: string;
   JWT_SECRET: string;
   CHATBOT_API_KEY: string;
 }
 
 export const env: AppEnv = {
   PORT: readPort(),
-  MONGO_URI: requireNonEmpty("MONGO_URI"),
+  MONGODB_URI: requireNonEmpty("MONGODB_URI"),
   JWT_SECRET: requireNonEmpty("JWT_SECRET"),
   CHATBOT_API_KEY: requireNonEmpty("CHATBOT_API_KEY"),
 };
