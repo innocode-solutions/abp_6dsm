@@ -10,7 +10,7 @@ vi.mock("dotenv", () => ({
 }));
 
 vi.hoisted(() => {
-  process.env.MONGO_URI = "mongodb://127.0.0.1:27017/test_db";
+  process.env.MONGODB_URI = "mongodb://127.0.0.1:27017/test_db";
   process.env.JWT_SECRET = "jwt-test-secret";
   process.env.CHATBOT_API_KEY = "chatbot-test-key";
 });
@@ -58,6 +58,28 @@ describe("src/api/app", () => {
         body: JSON.stringify({ ok: true }),
       });
       expect(res.status).toBe(404);
+    } finally {
+      await close();
+    }
+  });
+
+  it("GET /api-docs.json retorna a especificacao OpenAPI", async () => {
+    const app = createApp();
+    const { port, close } = await listenOnce(app);
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/api-docs.json`);
+      const body = (await res.json()) as {
+        openapi: string;
+        paths: Record<string, unknown>;
+        components: { securitySchemes: Record<string, unknown> };
+      };
+
+      expect(res.status).toBe(200);
+      expect(body.openapi).toBe("3.0.3");
+      expect(body.paths["/api/v1/auth/login"]).toBeDefined();
+      expect(body.paths["/api/v1/agendamentos/admin/agenda"]).toBeDefined();
+      expect(body.components.securitySchemes.bearerAuth).toBeDefined();
+      expect(body.components.securitySchemes.apiKeyAuth).toBeDefined();
     } finally {
       await close();
     }

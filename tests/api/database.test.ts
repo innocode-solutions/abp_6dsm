@@ -11,7 +11,7 @@ vi.mock("mongoose", () => ({
 vi.mock("../../src/api/config/env", () => ({
   env: {
     PORT: 3000,
-    MONGO_URI: "mongodb://127.0.0.1:27017/api_tests",
+    MONGODB_URI: "mongodb://127.0.0.1:27017/api_tests",
     JWT_SECRET: "secret",
     CHATBOT_API_KEY: "key",
   },

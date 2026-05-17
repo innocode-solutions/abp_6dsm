@@ -11,7 +11,7 @@ vi.mock("dotenv", () => ({
 vi.mock("../../src/api/config/env.js", () => ({
   env: {
     PORT: 3000,
-    MONGO_URI: "mongodb://127.0.0.1:27017/test_db",
+    MONGODB_URI: "mongodb://127.0.0.1:27017/test_db",
     JWT_SECRET: "jwt-test-secret",
     CHATBOT_API_KEY: "chatbot-test-key",
   },
@@ -47,7 +47,7 @@ const originalEnv = { ...process.env };
 const BASE = "/api/v1/agendamentos/admin";
 
 function setMinimalValidEnv(): void {
-  process.env.MONGO_URI = "mongodb://127.0.0.1:27017/test_db";
+  process.env.MONGODB_URI = "mongodb://127.0.0.1:27017/test_db";
   process.env.JWT_SECRET = "jwt-test-secret";
   process.env.CHATBOT_API_KEY = "chatbot-test-key";
 }

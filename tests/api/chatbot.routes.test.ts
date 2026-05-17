@@ -42,7 +42,7 @@ const API_KEY = "chatbot-test-key";
 const BASE = "/api/v1/agendamentos";
 
 function setMinimalValidEnv(): void {
-  process.env.MONGO_URI = "mongodb://127.0.0.1:27017/test_db";
+  process.env.MONGODB_URI = "mongodb://127.0.0.1:27017/test_db";
   process.env.JWT_SECRET = "jwt-test-secret";
   process.env.CHATBOT_API_KEY = API_KEY;
 }

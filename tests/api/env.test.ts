@@ -9,7 +9,7 @@ vi.mock("dotenv", () => ({
 const originalEnv = { ...process.env };
 
 function setMinimalValidEnv(): void {
-  process.env.MONGO_URI = "mongodb://127.0.0.1:27017/test_db";
+  process.env.MONGODB_URI = "mongodb://127.0.0.1:27017/test_db";
   process.env.JWT_SECRET = "jwt-test-secret";
   process.env.CHATBOT_API_KEY = "chatbot-test-key";
 }
@@ -29,7 +29,7 @@ describe("src/api/config/env", () => {
     setMinimalValidEnv();
     const { env } = await import("../../src/api/config/env.js");
     expect(env.PORT).toBe(3000);
-    expect(env.MONGO_URI).toBe("mongodb://127.0.0.1:27017/test_db");
+    expect(env.MONGODB_URI).toBe("mongodb://127.0.0.1:27017/test_db");
     expect(env.JWT_SECRET).toBe("jwt-test-secret");
     expect(env.CHATBOT_API_KEY).toBe("chatbot-test-key");
   });
@@ -49,12 +49,12 @@ describe("src/api/config/env", () => {
     );
   });
 
-  it("rejeita MONGO_URI ausente", async () => {
-    delete process.env.MONGO_URI;
+  it("rejeita MONGODB_URI ausente", async () => {
+    delete process.env.MONGODB_URI;
     process.env.JWT_SECRET = "x";
     process.env.CHATBOT_API_KEY = "y";
     await expect(import("../../src/api/config/env.js")).rejects.toThrow(
-      "Variável de ambiente obrigatória ausente ou vazia: MONGO_URI",
+      "Variável de ambiente obrigatória ausente ou vazia: MONGODB_URI",
     );
   });
 
