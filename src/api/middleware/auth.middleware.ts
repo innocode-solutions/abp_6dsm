@@ -10,12 +10,16 @@ interface AdminTokenPayload {
   perfil: PerfilUsuario;
 }
 
+function isPerfilUsuario(value: unknown): value is PerfilUsuario {
+  return value === "admin" || value === "atendente";
+}
+
 function isAdminTokenPayload(value: unknown): value is AdminTokenPayload {
   if (!value || typeof value !== "object") {
     return false;
   }
   const payload = value as Record<string, unknown>;
-  return typeof payload.id === "string" && typeof payload.perfil === "string";
+  return typeof payload.id === "string" && isPerfilUsuario(payload.perfil);
 }
 
 export function authenticateChatbot(req: Request, _res: Response, next: NextFunction): void {

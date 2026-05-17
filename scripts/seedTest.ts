@@ -11,6 +11,7 @@ import AgendamentoModel from "../src/api/models/Agendamento.model";
 import FuncionarioModel from "../src/api/models/Funcionario.model";
 import HorarioModel from "../src/api/models/Horario.model";
 import ServicoModel from "../src/api/models/Servico.model";
+import { hashSenha } from "../src/api/utils/passwordHelper";
 
 async function main(): Promise<void> {
   const uri = process.env.MONGO_URI?.trim();
@@ -70,6 +71,7 @@ async function main(): Promise<void> {
     const funcionario = await FuncionarioModel.create({
       nome: `${tag}-func`,
       email: `${tag}@example.com`,
+      senha_hash: await hashSenha("senha-teste"),
       perfil: "atendente",
       ativo: true,
     });

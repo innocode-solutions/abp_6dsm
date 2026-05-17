@@ -71,7 +71,10 @@ describe(
     });
 
     it("POST /servicos com campos obrigatórios faltando retorna 400 ERRO_VALIDACAO", async () => {
-      const Servico = (await import("../../src/api/models/Servico.model.js")).default;
+      const Servico = (await import("../../src/api/models/Servico.model.js"))
+        .default as unknown as {
+        create: (...args: unknown[]) => Promise<unknown>;
+      };
       const createSpy = vi.spyOn(Servico, "create");
 
       const { createApp } = await import("../../src/api/app.js");
@@ -98,7 +101,10 @@ describe(
     });
 
     it("GET /servicos/:id com id inexistente retorna 404 NAO_ENCONTRADO", async () => {
-      const Servico = (await import("../../src/api/models/Servico.model.js")).default;
+      const Servico = (await import("../../src/api/models/Servico.model.js"))
+        .default as unknown as {
+        findById: (...args: unknown[]) => Promise<unknown>;
+      };
       const findByIdSpy = vi.spyOn(Servico, "findById").mockResolvedValue(null);
 
       const { createApp } = await import("../../src/api/app.js");
@@ -120,7 +126,11 @@ describe(
     });
 
     it("DELETE /funcionarios/:id faz soft delete e mantém documento", async () => {
-      const Funcionario = (await import("../../src/api/models/Funcionario.model.js")).default;
+      const Funcionario = (await import("../../src/api/models/Funcionario.model.js"))
+        .default as unknown as {
+        findByIdAndUpdate: (...args: unknown[]) => Promise<unknown>;
+        findById: (...args: unknown[]) => Promise<{ ativo: boolean } | null>;
+      };
       const documento = {
         _id: ID,
         nome: "Maria",
@@ -164,7 +174,13 @@ describe(
     it("PATCH /regras-disponibilidade/:id atualiza atualizado_em", async () => {
       const RegraDisponibilidade = (
         await import("../../src/api/models/RegraDisponibilidade.model.js")
-      ).default;
+      ).default as unknown as {
+        findByIdAndUpdate: (
+          id: string,
+          update: { $set: { atualizado_em: Date; hora_fim: string } },
+          options?: { new: boolean; runValidators: boolean },
+        ) => Promise<unknown>;
+      };
       const antes = Date.now();
       const findByIdAndUpdateSpy = vi
         .spyOn(RegraDisponibilidade, "findByIdAndUpdate")
@@ -194,7 +210,7 @@ describe(
           },
         );
         const body = (await res.json()) as { dados: { atualizado_em: string } };
-        const chamada = findByIdAndUpdateSpy.mock.calls[0] as [
+        const chamada = findByIdAndUpdateSpy.mock.calls[0] as unknown as [
           string,
           { $set: { atualizado_em: Date; hora_fim: string } },
           { new: boolean; runValidators: boolean },
@@ -213,7 +229,7 @@ describe(
       }
     });
 
-    it("GET /servicos com perfil gestor retorna 403 SEM_PERMISSAO", async () => {
+    it("GET /servicos com perfil fora dos permitidos retorna 401 NAO_AUTENTICADO", async () => {
       const { createApp } = await import("../../src/api/app.js");
       const app = createApp();
       const { port, close } = await listenOnce(app);
@@ -224,8 +240,8 @@ describe(
         });
         const body = (await res.json()) as { erro: { codigo: string } };
 
-        expect(res.status).toBe(403);
-        expect(body.erro.codigo).toBe("SEM_PERMISSAO");
+        expect(res.status).toBe(401);
+        expect(body.erro.codigo).toBe("NAO_AUTENTICADO");
       } finally {
         await close();
       }

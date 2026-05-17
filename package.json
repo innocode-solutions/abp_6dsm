@@ -22,7 +22,8 @@
     "rag:index": "tsx src/rag/build-index.ts",
     "api:dev": "ts-node-dev --respawn --transpile-only -P tsconfig.api.json src/api/server.ts",
     "api:build": "npm run build:api",
-    "api:start": "node dist/api/server.js"
+    "api:start": "node dist/api/server.js",
+    "api:seed-admin": "tsx src/api/scripts/seed-admin.ts"
   },
   "repository": {
     "type": "git",

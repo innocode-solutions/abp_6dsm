@@ -8,6 +8,7 @@ export interface IFuncionario {
   _id: Types.ObjectId;
   nome: string;
   email: string;
+  senha_hash: string;
   perfil: FuncionarioPerfil;
   ativo: boolean;
   criado_em: Date;
@@ -17,7 +18,8 @@ export interface IFuncionario {
 const funcionarioSchema = new Schema<IFuncionario>(
   {
     nome: { type: String, required: true, trim: true },
-    email: { type: String, required: true, trim: true, lowercase: true },
+    email: { type: String, required: true, trim: true, lowercase: true, unique: true },
+    senha_hash: { type: String, required: true, select: false },
     perfil: {
       type: String,
       required: true,
