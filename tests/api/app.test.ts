@@ -1,8 +1,21 @@
 import type { AddressInfo } from "node:net";
-import { describe, expect, it } from "vitest";
-import { createApp } from "../../src/api/app";
+import type express from "express";
+import { describe, expect, it, vi } from "vitest";
+import { createApp } from "../../src/api/app.js";
 
-function listenOnce(app: ReturnType<typeof createApp>): Promise<{ port: number; close: () => Promise<void> }> {
+vi.mock("dotenv", () => ({
+  default: {
+    config: vi.fn(),
+  },
+}));
+
+vi.hoisted(() => {
+  process.env.MONGO_URI = "mongodb://127.0.0.1:27017/test_db";
+  process.env.JWT_SECRET = "jwt-test-secret";
+  process.env.CHATBOT_API_KEY = "chatbot-test-key";
+});
+
+function listenOnce(app: express.Application): Promise<{ port: number; close: () => Promise<void> }> {
   return new Promise((resolve, reject) => {
     const server = app.listen(0, "127.0.0.1", () => {
       const addr = server.address();
@@ -15,7 +28,7 @@ function listenOnce(app: ReturnType<typeof createApp>): Promise<{ port: number; 
         port,
         close: () =>
           new Promise((res, rej) => {
-            server.close((err) => (err ? rej(err) : res()));
+            server.close((err?: Error) => (err ? rej(err) : res()));
           }),
       });
     });
@@ -24,7 +37,7 @@ function listenOnce(app: ReturnType<typeof createApp>): Promise<{ port: number; 
 }
 
 describe("src/api/app", () => {
-  it("GET / retorna 404 quando não há rotas registradas", async () => {
+  it("GET / retorna 404 fora das rotas da API", async () => {
     const app = createApp();
     const { port, close } = await listenOnce(app);
     try {

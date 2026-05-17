@@ -14,6 +14,7 @@ export const AGENDAMENTO_STATUS = [
   "concluido",
   "nao_compareceu",
   "reagendado",
+  "remarcado",
 ] as const;
 
 export type AgendamentoStatus = (typeof AGENDAMENTO_STATUS)[number];
@@ -58,6 +59,8 @@ export interface IAgendamento {
   descricao: string;
   origem: AgendamentoOrigem;
   conversa_id: string;
+  remarcacoes_count: number;
+  codigo_agendamento_anterior?: string | null;
   calendario_externo?: IAgendamentoCalendarioExterno | null;
 }
 
@@ -117,6 +120,8 @@ const agendamentoSchema = new Schema<IAgendamento>(
       enum: AGENDAMENTO_ORIGENS,
     },
     conversa_id: { type: String, required: true, trim: true },
+    remarcacoes_count: { type: Number, required: true, default: 0, min: 0 },
+    codigo_agendamento_anterior: { type: String, trim: true, default: null },
     calendario_externo: {
       type: calendarioExternoSchema,
       default: undefined,

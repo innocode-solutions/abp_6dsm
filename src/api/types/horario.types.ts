@@ -12,3 +12,17 @@ export interface IPreReserva {
   expira_em: string;
   criada_em: string;
 }
+
+export interface IHorarioExibicao {
+  _id: string;
+  funcionario_id: string;
+  servico_id: string;
+  inicio_em: Date;
+  fim_em: Date;
+  status: StatusHorario;
+  exibicao: {
+    data: string;
+    hora: string;
+    dia_semana: string;
+  };
+}

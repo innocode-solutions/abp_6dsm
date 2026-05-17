@@ -12,6 +12,9 @@ export interface IFeriado {
   nome: string;
   tipo: FeriadoTipo;
   bloqueia_agendamento: boolean;
+  ativo: boolean;
+  criado_em: Date;
+  atualizado_em: Date;
 }
 
 const feriadoSchema = new Schema<IFeriado>(
@@ -29,8 +32,12 @@ const feriadoSchema = new Schema<IFeriado>(
       enum: FERIADO_TIPOS,
     },
     bloqueia_agendamento: { type: Boolean, required: true, default: true },
+    ativo: { type: Boolean, required: true, default: true },
   },
-  { collection: "feriados" }
+  {
+    collection: "feriados",
+    timestamps: { createdAt: "criado_em", updatedAt: "atualizado_em" },
+  },
 );
 
 const FeriadoModel =

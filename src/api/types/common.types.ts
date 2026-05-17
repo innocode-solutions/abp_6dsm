@@ -1,4 +1,4 @@
-export type PerfilUsuario = "admin" | "gestor" | "atendente" | "visualizador";
+export type PerfilUsuario = "admin" | "atendente";
 
 export interface RespostaPadrao<T> {
   dados: T;

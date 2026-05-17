@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { AppError } from "../../src/api/types/common.types";
-import { maskCpf, hashCpf } from "../../src/api/utils/cpfHelper";
-import { toBrasiliaDisplay } from "../../src/api/utils/dateHelper";
-import { success } from "../../src/api/utils/responseHelper";
+import { AppError } from "../../src/api/types/common.types.js";
+import { maskCpf, hashCpf } from "../../src/api/utils/cpfHelper.js";
+import { toBrasiliaDisplay } from "../../src/api/utils/dateHelper.js";
+import { success } from "../../src/api/utils/responseHelper.js";
 
 describe("src/api types e utils", () => {
   it("maskCpf mascara CPF de 11 digitos", () => {

@@ -9,6 +9,8 @@ export interface IRegraDisponibilidade {
   hora_fim: string;
   duracao_horario_minutos: number;
   ativo: boolean;
+  criado_em: Date;
+  atualizado_em: Date;
 }
 
 const regraDisponibilidadeSchema = new Schema<IRegraDisponibilidade>(
@@ -29,7 +31,10 @@ const regraDisponibilidadeSchema = new Schema<IRegraDisponibilidade>(
     duracao_horario_minutos: { type: Number, required: true, min: 1 },
     ativo: { type: Boolean, required: true, default: true },
   },
-  { collection: "regras_disponibilidade" }
+  {
+    collection: "regras_disponibilidade",
+    timestamps: { createdAt: "criado_em", updatedAt: "atualizado_em" },
+  },
 );
 
 const RegraDisponibilidadeModel =

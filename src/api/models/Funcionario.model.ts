@@ -1,11 +1,6 @@
 import mongoose, { Schema, type Types } from "mongoose";
 
-export const FUNCIONARIO_PERFIS = [
-  "admin",
-  "gestor",
-  "atendente",
-  "visualizador",
-] as const;
+export const FUNCIONARIO_PERFIS = ["admin", "atendente"] as const;
 
 export type FuncionarioPerfil = (typeof FUNCIONARIO_PERFIS)[number];
 
