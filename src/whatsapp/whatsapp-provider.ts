@@ -15,6 +15,7 @@ export class WhatsAppProvider implements MessagingProvider {
   private readonly authPath: string;
   private readonly browserLogEnabled: boolean;
   private readonly browserUserAgent: string;
+  private readonly pairingShowNotification: boolean;
   private readonly pairingRetryDelayMs: number;
   private diagnosticsRegistered = false;
   private pairingRetryTimeout: NodeJS.Timeout | null = null;
@@ -27,6 +28,10 @@ export class WhatsAppProvider implements MessagingProvider {
     this.browserUserAgent =
       process.env.WHATSAPP_USER_AGENT?.trim() ||
       WhatsAppProvider.DEFAULT_USER_AGENT;
+    this.pairingShowNotification = this.parseBooleanEnv(
+      process.env.WHATSAPP_PAIRING_SHOW_NOTIFICATION,
+      false
+    );
     this.pairingRetryDelayMs = this.parseRetryDelay(
       process.env.WHATSAPP_PAIRING_RETRY_DELAY_MS
     );
@@ -45,7 +50,7 @@ export class WhatsAppProvider implements MessagingProvider {
         ? {
             pairWithPhoneNumber: {
               phoneNumber: this.pairingPhoneNumber,
-              showNotification: true,
+              showNotification: this.pairingShowNotification,
               intervalMs: 180000
             }
           }
@@ -262,6 +267,11 @@ export class WhatsAppProvider implements MessagingProvider {
       console.log(
         `[WhatsApp] Retry do pareamento por codigo: ${this.pairingRetryDelayMs} ms`
       );
+      console.log(
+        `[WhatsApp] Notificacao de pareamento no celular: ${
+          this.pairingShowNotification ? "ativada" : "desativada"
+        }`
+      );
     }
   }
 
@@ -296,7 +306,7 @@ export class WhatsAppProvider implements MessagingProvider {
 
     client.requestPairingCode = async (
       phoneNumber: string,
-      showNotification = true,
+      showNotification = this.pairingShowNotification,
       intervalMs = 180000
     ): Promise<string> => {
       try {
@@ -316,6 +326,27 @@ export class WhatsAppProvider implements MessagingProvider {
 
         return code;
       } catch (error) {
+        if (showNotification) {
+          console.warn(
+            "[WhatsApp] Pareamento com notificacao falhou. Tentando novamente sem notificacao no celular."
+          );
+
+          try {
+            return await originalRequestPairingCode(
+              phoneNumber,
+              false,
+              intervalMs
+            );
+          } catch (retryError) {
+            this.logError(
+              `Falha ao solicitar codigo de pareamento sem notificacao para ${this.maskPhoneNumber(
+                phoneNumber
+              )}`,
+              retryError
+            );
+          }
+        }
+
         this.logError(
           `Falha ao solicitar codigo de pareamento para ${this.maskPhoneNumber(
             phoneNumber
@@ -324,11 +355,11 @@ export class WhatsAppProvider implements MessagingProvider {
         );
         await this.logPairingStateSnapshot({
           phoneNumber,
-          showNotification,
+          showNotification: false,
           intervalMs,
           source: "requestPairingCode"
         });
-        this.schedulePairingRetry(phoneNumber, showNotification, intervalMs);
+        this.schedulePairingRetry(phoneNumber, false, intervalMs);
         return "";
       }
     };

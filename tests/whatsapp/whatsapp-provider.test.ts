@@ -39,6 +39,7 @@ describe("WhatsAppProvider", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.WHATSAPP_PHONE_NUMBER;
+    delete process.env.WHATSAPP_PAIRING_SHOW_NOTIFICATION;
     delete process.env.WHATSAPP_USER_AGENT;
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-15T10:00:00.000Z"));
@@ -61,6 +62,23 @@ describe("WhatsAppProvider", () => {
 
   it("deve habilitar pareamento por codigo quando houver numero configurado", () => {
     process.env.WHATSAPP_PHONE_NUMBER = "+55 (11) 99999-9999";
+
+    new WhatsAppProvider();
+
+    expect(clientMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pairWithPhoneNumber: {
+          phoneNumber: "5511999999999",
+          showNotification: false,
+          intervalMs: 180000
+        }
+      })
+    );
+  });
+
+  it("deve permitir ativar notificacao de pareamento por variavel de ambiente", () => {
+    process.env.WHATSAPP_PHONE_NUMBER = "+55 (11) 99999-9999";
+    process.env.WHATSAPP_PAIRING_SHOW_NOTIFICATION = "true";
 
     new WhatsAppProvider();
 
