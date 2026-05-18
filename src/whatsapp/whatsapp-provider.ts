@@ -13,6 +13,7 @@ export class WhatsAppProvider implements MessagingProvider {
   private onMessageHandler: ((message: IncomingMessage) => Promise<void>) | null = null;
   private readonly pairingPhoneNumber: string | null;
   private readonly authPath: string;
+  private readonly authClientId: string;
   private readonly browserLogEnabled: boolean;
   private readonly browserUserAgent: string;
   private readonly pairingShowNotification: boolean;
@@ -24,6 +25,8 @@ export class WhatsAppProvider implements MessagingProvider {
   constructor() {
     const chromePath = process.env.PUPPETEER_EXECUTABLE_PATH?.trim();
     this.authPath = process.env.WHATSAPP_AUTH_PATH?.trim() || ".wwebjs_auth";
+    this.authClientId =
+      process.env.WHATSAPP_AUTH_CLIENT_ID?.trim() || "proconbot-jacarei";
     this.browserLogEnabled = this.isTruthy(process.env.WHATSAPP_BROWSER_LOGS);
     this.browserUserAgent =
       process.env.WHATSAPP_USER_AGENT?.trim() ||
@@ -97,7 +100,7 @@ export class WhatsAppProvider implements MessagingProvider {
         "[WhatsApp] MongoDB conectado — usando RemoteAuth (sessão persistida no banco)."
       );
       return new RemoteAuth({
-        clientId: "proconbot-jacarei",
+        clientId: this.authClientId,
         dataPath: this.authPath,
         store: new MongoWhatsappStore(),
         backupSyncIntervalMs: 300_000 // sincroniza a cada 5 min
@@ -106,7 +109,7 @@ export class WhatsAppProvider implements MessagingProvider {
 
     console.log("[WhatsApp] Sem MongoDB — usando LocalAuth (sessão em disco).");
     return new LocalAuth({
-      clientId: "proconbot-jacarei",
+      clientId: this.authClientId,
       dataPath: this.authPath
     });
   }
@@ -252,6 +255,7 @@ export class WhatsAppProvider implements MessagingProvider {
     console.log(
       `[WhatsApp] Chromium: ${process.env.PUPPETEER_EXECUTABLE_PATH || "padrao do Puppeteer"}`
     );
+    console.log(`[WhatsApp] Client ID da sessao: ${this.authClientId}`);
     console.log(`[WhatsApp] User-Agent do navegador: ${this.browserUserAgent}`);
     console.log(`[WhatsApp] Diretorio de autenticacao: ${this.authPath}`);
     console.log(

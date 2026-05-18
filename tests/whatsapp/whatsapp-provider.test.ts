@@ -6,6 +6,7 @@ const onMock = vi.fn();
 const initializeMock = vi.fn();
 const clientMock = vi.fn();
 const localAuthMock = vi.fn();
+const remoteAuthMock = vi.fn();
 
 vi.mock("qrcode-terminal", () => ({
   default: {
@@ -29,15 +30,23 @@ vi.mock("whatsapp-web.js", () => {
     }
   }
 
+  class MockRemoteAuth {
+    constructor(...args: unknown[]) {
+      remoteAuthMock(...args);
+    }
+  }
+
   return {
     Client: MockClient,
-    LocalAuth: MockLocalAuth
+    LocalAuth: MockLocalAuth,
+    RemoteAuth: MockRemoteAuth
   };
 });
 
 describe("WhatsAppProvider", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.WHATSAPP_AUTH_CLIENT_ID;
     delete process.env.WHATSAPP_PHONE_NUMBER;
     delete process.env.WHATSAPP_PAIRING_SHOW_NOTIFICATION;
     delete process.env.WHATSAPP_USER_AGENT;
@@ -58,6 +67,18 @@ describe("WhatsAppProvider", () => {
     const provider = new WhatsAppProvider();
     await provider.initialize();
     expect(initializeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("deve permitir sobrescrever clientId da sessao por variavel de ambiente", () => {
+    process.env.WHATSAPP_AUTH_CLIENT_ID = "proconbot-jacarei-v2";
+
+    new WhatsAppProvider();
+
+    expect(localAuthMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: "proconbot-jacarei-v2"
+      })
+    );
   });
 
   it("deve habilitar pareamento por codigo quando houver numero configurado", () => {
