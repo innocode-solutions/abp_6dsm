@@ -48,6 +48,8 @@ describe("WhatsAppProvider", () => {
     vi.clearAllMocks();
     delete process.env.WHATSAPP_AUTH_CLIENT_ID;
     delete process.env.WHATSAPP_PHONE_NUMBER;
+    delete process.env.WHATSAPP_PAIRING_FALLBACK_QR;
+    delete process.env.WHATSAPP_PAIRING_MAX_ATTEMPTS;
     delete process.env.WHATSAPP_PAIRING_SHOW_NOTIFICATION;
     delete process.env.WHATSAPP_USER_AGENT;
     vi.useFakeTimers();

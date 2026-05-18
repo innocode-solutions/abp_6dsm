@@ -14,16 +14,22 @@ export class WhatsAppProvider implements MessagingProvider {
   private readonly pairingPhoneNumber: string | null;
   private readonly authPath: string;
   private readonly authClientId: string;
+  private readonly chromePath: string | undefined;
   private readonly browserLogEnabled: boolean;
   private readonly browserUserAgent: string;
   private readonly pairingShowNotification: boolean;
   private readonly pairingRetryDelayMs: number;
+  private readonly pairingMaxAttempts: number;
+  private readonly pairingQrFallbackEnabled: boolean;
   private diagnosticsRegistered = false;
+  private pairingCodeEnabled = false;
+  private pairingFailureCount = 0;
+  private qrFallbackStarted = false;
   private pairingRetryTimeout: NodeJS.Timeout | null = null;
   private lastQrRenderedAt = 0;
 
   constructor() {
-    const chromePath = process.env.PUPPETEER_EXECUTABLE_PATH?.trim();
+    this.chromePath = process.env.PUPPETEER_EXECUTABLE_PATH?.trim() || undefined;
     this.authPath = process.env.WHATSAPP_AUTH_PATH?.trim() || ".wwebjs_auth";
     this.authClientId =
       process.env.WHATSAPP_AUTH_CLIENT_ID?.trim() || "proconbot-jacarei";
@@ -38,21 +44,36 @@ export class WhatsAppProvider implements MessagingProvider {
     this.pairingRetryDelayMs = this.parseRetryDelay(
       process.env.WHATSAPP_PAIRING_RETRY_DELAY_MS
     );
+    this.pairingMaxAttempts = this.parsePositiveInteger(
+      process.env.WHATSAPP_PAIRING_MAX_ATTEMPTS,
+      3
+    );
+    this.pairingQrFallbackEnabled = this.parseBooleanEnv(
+      process.env.WHATSAPP_PAIRING_FALLBACK_QR,
+      true
+    );
     this.pairingPhoneNumber = this.normalizePhoneNumber(
       process.env.WHATSAPP_PHONE_NUMBER
     );
+    this.pairingCodeEnabled = Boolean(this.pairingPhoneNumber);
 
+    this.client = this.createClient();
+    this.registerEvents();
+    this.wrapPairingCodeRequest();
+  }
+
+  private createClient(): Client {
     const authStrategy = this.buildAuthStrategy();
     const puppetHeadless = this.parseBooleanEnv(process.env.PUPPETEER_HEADLESS, true);
     const puppetUserDataDir = process.env.PUPPETEER_USER_DATA_DIR?.trim();
     const useUserDataDir = authStrategy instanceof LocalAuth && Boolean(puppetUserDataDir);
 
-    this.client = new Client({
+    return new Client({
       authStrategy,
-      ...(this.pairingPhoneNumber
+      ...(this.isPairingCodeActive()
         ? {
             pairWithPhoneNumber: {
-              phoneNumber: this.pairingPhoneNumber,
+              phoneNumber: this.pairingPhoneNumber!,
               showNotification: this.pairingShowNotification,
               intervalMs: 180000
             }
@@ -77,14 +98,11 @@ export class WhatsAppProvider implements MessagingProvider {
           "--no-default-browser-check",
           "--window-size=1280,720"
         ],
-        ...(chromePath ? { executablePath: chromePath } : {}),
+        ...(this.chromePath ? { executablePath: this.chromePath } : {}),
         ...(useUserDataDir ? { userDataDir: puppetUserDataDir } : {})
       },
       userAgent: this.browserUserAgent
     });
-
-    this.registerEvents();
-    this.wrapPairingCodeRequest();
   }
 
   /**
@@ -136,7 +154,7 @@ export class WhatsAppProvider implements MessagingProvider {
 
   private registerEvents(): void {
     this.client.on("qr", (qr: string) => {
-      if (this.pairingPhoneNumber) {
+      if (this.isPairingCodeActive()) {
         console.log(
           "[WhatsApp] QR recebido, mas o pareamento por codigo esta ativo. Aguarde o codigo de 8 caracteres no log."
         );
@@ -232,11 +250,25 @@ export class WhatsAppProvider implements MessagingProvider {
     return sanitized.length > 0 ? sanitized : null;
   }
 
+  private isPairingCodeActive(): boolean {
+    return this.pairingCodeEnabled && Boolean(this.pairingPhoneNumber);
+  }
+
   private parseRetryDelay(value?: string): number {
     const parsed = Number(value);
 
     if (!Number.isFinite(parsed) || parsed < 1000) {
       return 15000;
+    }
+
+    return parsed;
+  }
+
+  private parsePositiveInteger(value: string | undefined, defaultValue: number): number {
+    const parsed = Number(value);
+
+    if (!Number.isInteger(parsed) || parsed < 1) {
+      return defaultValue;
     }
 
     return parsed;
@@ -270,6 +302,14 @@ export class WhatsAppProvider implements MessagingProvider {
       );
       console.log(
         `[WhatsApp] Retry do pareamento por codigo: ${this.pairingRetryDelayMs} ms`
+      );
+      console.log(
+        `[WhatsApp] Tentativas antes do fallback para QR: ${this.pairingMaxAttempts}`
+      );
+      console.log(
+        `[WhatsApp] Fallback para QR: ${
+          this.pairingQrFallbackEnabled ? "ativado" : "desativado"
+        }`
       );
       console.log(
         `[WhatsApp] Notificacao de pareamento no celular: ${
@@ -351,6 +391,7 @@ export class WhatsAppProvider implements MessagingProvider {
           }
         }
 
+        this.pairingFailureCount++;
         this.logError(
           `Falha ao solicitar codigo de pareamento para ${this.maskPhoneNumber(
             phoneNumber
@@ -363,6 +404,12 @@ export class WhatsAppProvider implements MessagingProvider {
           intervalMs,
           source: "requestPairingCode"
         });
+
+        if (this.shouldFallbackToQr()) {
+          this.scheduleQrFallback();
+          return "";
+        }
+
         this.schedulePairingRetry(phoneNumber, false, intervalMs);
         return "";
       }
@@ -426,7 +473,7 @@ export class WhatsAppProvider implements MessagingProvider {
     showNotification: boolean,
     intervalMs: number
   ): void {
-    if (this.pairingRetryTimeout) {
+    if (this.pairingRetryTimeout || this.qrFallbackStarted) {
       return;
     }
 
@@ -450,6 +497,56 @@ export class WhatsAppProvider implements MessagingProvider {
           this.logError("Falha ao repetir solicitacao do codigo", error);
         });
     }, this.pairingRetryDelayMs);
+  }
+
+  private shouldFallbackToQr(): boolean {
+    return (
+      this.pairingQrFallbackEnabled &&
+      this.isPairingCodeActive() &&
+      this.pairingFailureCount >= this.pairingMaxAttempts
+    );
+  }
+
+  private scheduleQrFallback(): void {
+    if (this.qrFallbackStarted) {
+      return;
+    }
+
+    this.qrFallbackStarted = true;
+    this.pairingCodeEnabled = false;
+
+    if (this.pairingRetryTimeout) {
+      clearTimeout(this.pairingRetryTimeout);
+      this.pairingRetryTimeout = null;
+    }
+
+    console.warn(
+      "[WhatsApp] Pareamento por codigo falhou repetidamente. Reiniciando em modo QR."
+    );
+
+    setTimeout(() => {
+      void this.restartClientForQr();
+    }, 1000);
+  }
+
+  private async restartClientForQr(): Promise<void> {
+    try {
+      await this.client.destroy();
+    } catch (error) {
+      this.logError("Falha ao encerrar cliente antes do fallback para QR", error);
+    }
+
+    this.diagnosticsRegistered = false;
+    this.lastQrRenderedAt = 0;
+    this.client = this.createClient();
+    this.registerEvents();
+    this.wrapPairingCodeRequest();
+
+    try {
+      await this.client.initialize();
+    } catch (error) {
+      this.logError("Falha ao inicializar cliente em modo QR", error);
+    }
   }
 
   private async logPairingStateSnapshot(context?: {
