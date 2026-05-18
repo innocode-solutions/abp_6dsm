@@ -29,6 +29,20 @@ describe("FlowEngine", () => {
     }
   });
 
+  it("deve continuar sessão persistida sem respostas salvas", () => {
+    const engine = new FlowEngine();
+    const session = {
+      flowId: flow.id,
+      currentStepIndex: 0,
+      finished: false
+    } as ReturnType<FlowEngine["start"]>;
+
+    const result = engine.answerCurrentStep(flow, session, "online");
+
+    expect(session.answers).toEqual({ tipo_compra: "online" });
+    expect(result.type).toBe("step");
+  });
+
   it("deve finalizar o fluxo quando uma regra for satisfeita", () => {
     const engine = new FlowEngine();
     const session = engine.start(flow);
