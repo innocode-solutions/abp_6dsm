@@ -294,8 +294,18 @@ export class WhatsAppProvider implements MessagingProvider {
 
         return code;
       } catch (error) {
-        this.logError("Falha ao solicitar codigo de pareamento", error);
-        await this.logPairingStateSnapshot();
+        this.logError(
+          `Falha ao solicitar codigo de pareamento para ${this.maskPhoneNumber(
+            phoneNumber
+          )}`,
+          error
+        );
+        await this.logPairingStateSnapshot({
+          phoneNumber,
+          showNotification,
+          intervalMs,
+          source: "requestPairingCode"
+        });
         this.schedulePairingRetry(phoneNumber, showNotification, intervalMs);
         return "";
       }
@@ -364,7 +374,8 @@ export class WhatsAppProvider implements MessagingProvider {
     }
 
     console.warn(
-      `[WhatsApp] Novo pareamento por codigo sera tentado em ${this.pairingRetryDelayMs} ms.`
+      `[WhatsApp] Novo pareamento por codigo sera tentado em ${this.pairingRetryDelayMs} ms ` +
+        `(numero=${this.maskPhoneNumber(phoneNumber)}, notify=${showNotification}, intervalMs=${intervalMs}).`
     );
 
     this.pairingRetryTimeout = setTimeout(() => {
@@ -384,7 +395,12 @@ export class WhatsAppProvider implements MessagingProvider {
     }, this.pairingRetryDelayMs);
   }
 
-  private async logPairingStateSnapshot(): Promise<void> {
+  private async logPairingStateSnapshot(context?: {
+    phoneNumber?: string;
+    showNotification?: boolean;
+    intervalMs?: number;
+    source?: string;
+  }): Promise<void> {
     const page = (this.client as Client & {
       pupPage?: {
         evaluate<T>(fn: () => T | Promise<T>): Promise<T>;
@@ -397,6 +413,17 @@ export class WhatsAppProvider implements MessagingProvider {
     }
 
     try {
+      if (context) {
+        console.log("[WhatsApp] Contexto do pareamento:", {
+          source: context.source ?? "desconhecido",
+          phoneNumber: context.phoneNumber
+            ? this.maskPhoneNumber(context.phoneNumber)
+            : undefined,
+          showNotification: context.showNotification,
+          intervalMs: context.intervalMs
+        });
+      }
+
       const snapshot = await page.evaluate(() => {
         const authStore = (window as Window & {
           AuthStore?: {
@@ -426,6 +453,12 @@ export class WhatsAppProvider implements MessagingProvider {
 
       if (error.stack) {
         console.error(error.stack);
+      }
+
+      const anyError = error as Error & { cause?: unknown };
+
+      if (anyError.cause) {
+        console.error("[WhatsApp] Causa original:", anyError.cause);
       }
 
       return;
