@@ -133,8 +133,22 @@ Implementar a comunicação via WhatsApp e os primeiros fluxos de atendimento do
 
 <div align="center">
   <p><i>Gráfico de Burndown do Sprint 1</i></p>
-  <img width="1366" height="766" alt="burndown_sprint1" src="https://github.com/user-attachments/assets/31e64479-ff63-4a63-9f79-c9de1b3f69a0" />
+  <img width="1366" height="766" alt="Sprint 1 - Burndown" src="https://github.com/user-attachments/assets/1a14ca77-bad2-42d5-8d5e-afa28d0f290a" />
 </div>
+
+---
+
+**Retrospectiva — Sprint 1**
+ 
+**✅ O que foi bem**
+- Os fluxos decisórios foram bem definidos e receberam feedback positivo do professor.
+- A integração com WhatsApp via whatsapp-web.js foi entregue dentro do prazo.
+- A comunicação entre os membros da equipe foi efetiva durante toda a sprint.
+- O motor de fluxo decisório atendeu os casos de uso previstos (cobrança indevida, empréstimo não reconhecido, arrependimento e cancelamento de plano).
+**⚠️ O que pode melhorar**
+- A estimativa de story points precisa ser revisada antes do início de cada sprint para garantir coerência com o gráfico de burndown.
+- A documentação de setup do projeto (como subir localmente) precisa ser iniciada em paralelo ao desenvolvimento, não apenas ao final.
+- O gráfico de burndown não refletiu os story points reais da sprint — deve partir do total de pontos do backlog, não da quantidade de tarefas.
 
 </details>
 
@@ -161,6 +175,23 @@ Implementar base de conhecimento, interpretação de linguagem e persistência d
 | US32 | RF03, RF06 | Persistir sessões no banco | 3 |
 
 </details>
+
+<div align="center">
+  <p><i>Gráfico de Burndown do Sprint 2</i></p>
+  <img width="1366" height="766" alt="Sprint 2 - Burndown" src="https://github.com/user-attachments/assets/1c00a756-d64b-4881-b014-557a3af94a34" />
+
+</div>
+
+---
+ 
+**Retrospectiva — Sprint 2**
+ 
+**✅ O que foi bem**
+- A estruturação da base FAQ do PROCON foi concluída e servirá como base sólida para as respostas do bot.
+- A pipeline de RAG (ingestão do CDC → chunking → embeddings → busca semântica) foi implementada com sucesso.
+- A equipe conseguiu lidar com tecnologias novas (embeddings, busca vetorial) dentro do prazo da sprint.
+**⚠️ O que pode melhorar**
+- A comunicação decaiu em relação a sprint anterior.
 
 <details>
 <summary><h3>Sprint 3 — Infraestrutura Cloud e Governança</h3></summary>
