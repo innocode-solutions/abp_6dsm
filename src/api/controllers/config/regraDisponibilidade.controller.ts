@@ -4,6 +4,10 @@ import RegraDisponibilidade from "../../models/RegraDisponibilidade.model.js";
 import { AppError } from "../../types/common.types.js";
 import { success } from "../../utils/responseHelper.js";
 import {
+  assertFuncionarioExisteEAtivo,
+  assertServicoExisteEAtivo,
+} from "../../service/validacao/referencias.service.js";
+import {
   assertCamposObrigatorios,
   assertObjectId,
   filtroAtivo,
@@ -41,6 +45,8 @@ export async function criar(
     assertCamposObrigatorios(req.body, [...CAMPOS_OBRIGATORIOS]);
     assertObjectId(String(req.body.funcionario_id), "funcionario_id");
     assertObjectId(String(req.body.servico_id), "servico_id");
+    await assertFuncionarioExisteEAtivo(String(req.body.funcionario_id));
+    await assertServicoExisteEAtivo(String(req.body.servico_id));
 
     const duracao = Number(req.body.duracao_horario_minutos);
     const diaSemana = Number(req.body.dia_semana);
@@ -90,6 +96,16 @@ export async function atualizar(
   next: NextFunction,
 ): Promise<void> {
   try {
+    const body = req.body as Record<string, unknown>;
+    if (body.funcionario_id !== undefined) {
+      assertObjectId(String(body.funcionario_id), "funcionario_id");
+      await assertFuncionarioExisteEAtivo(String(body.funcionario_id));
+    }
+    if (body.servico_id !== undefined) {
+      assertObjectId(String(body.servico_id), "servico_id");
+      await assertServicoExisteEAtivo(String(body.servico_id));
+    }
+
     const regra = await RegraDisponibilidade.findByIdAndUpdate(
       paramId(req.params.id),
       { $set: { ...req.body, atualizado_em: new Date() } },

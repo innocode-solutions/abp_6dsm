@@ -9,14 +9,26 @@ vi.mock("../../../src/api/models/Horario.model.js", () => ({
   },
 }));
 
+const assertServicoExisteEAtivoMock = vi.fn();
+const listarIdsFuncionariosAtivosMock = vi.fn();
+
+vi.mock("../../../src/api/service/validacao/referencias.service.js", () => ({
+  assertServicoExisteEAtivo: (...args: unknown[]) => assertServicoExisteEAtivoMock(...args),
+  listarIdsFuncionariosAtivos: (...args: unknown[]) => listarIdsFuncionariosAtivosMock(...args),
+}));
+
 describe("horario.service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    assertServicoExisteEAtivoMock.mockResolvedValue(undefined);
   });
 
   it("retorna horários disponíveis com campo exibicao", async () => {
     const servicoId = new mongoose.Types.ObjectId();
+    const funcionarioId = new mongoose.Types.ObjectId();
     const inicio = new Date("2026-05-25T14:00:00.000Z");
+
+    listarIdsFuncionariosAtivosMock.mockResolvedValue([funcionarioId]);
 
     findMock.mockReturnValue({
       sort: () => ({
@@ -25,7 +37,7 @@ describe("horario.service", () => {
             Promise.resolve([
               {
                 _id: new mongoose.Types.ObjectId(),
-                funcionario_id: new mongoose.Types.ObjectId(),
+                funcionario_id: funcionarioId,
                 servico_id: servicoId,
                 inicio_em: inicio,
                 fim_em: new Date("2026-05-25T14:30:00.000Z"),

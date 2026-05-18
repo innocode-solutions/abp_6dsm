@@ -1,16 +1,19 @@
 import mongoose, { type Types } from "mongoose";
 
+import { HORAS_MINIMAS_ANTECEDENCIA } from "../constants/agendamento.constants.js";
 import AgendamentoModel, {
   type IAgendamento,
   type IAgendamentoCidadao,
 } from "../models/Agendamento.model.js";
-import HorarioModel from "../models/Horario.model.js";
+import HorarioModel, { type IHorario } from "../models/Horario.model.js";
 import type { ILogAuditoriaExecutadoPor } from "../models/LogAuditoria.model.js";
 import { AppError } from "../types/common.types.js";
 import { generateProtocolo } from "./protocolo.service.js";
 import { registrarAuditoria } from "./auditoria.service.js";
+import {
+  assertHorarioReferenciasAtivas,
+} from "./validacao/referencias.service.js";
 
-const HORAS_MINIMAS_ANTECEDENCIA = 2;
 const MAX_REMARCACOES = 2;
 
 const STATUS_ATIVOS = ["pendente", "confirmado", "check_in_realizado"] as const;
@@ -33,10 +36,7 @@ function validarAntecedenciaMinima(inicio_em: Date, horasMinimas: number): void 
 }
 
 function validarAntecedenciaRemarcacao(inicio_em: Date): void {
-  const limiteMs = HORAS_MINIMAS_ANTECEDENCIA * 60 * 60 * 1000;
-  if (inicio_em.getTime() - Date.now() < limiteMs) {
-    throw new AppError("REMARCACAO_FORA_DO_PRAZO", 409);
-  }
+  validarAntecedenciaMinima(inicio_em, HORAS_MINIMAS_ANTECEDENCIA);
 }
 
 async function assertSemAgendamentoAtivoDuplicado(cpf: string): Promise<void> {
@@ -48,6 +48,34 @@ async function assertSemAgendamentoAtivoDuplicado(cpf: string): Promise<void> {
   if (existente) {
     throw new AppError("AGENDAMENTO_DUPLICADO", 409);
   }
+}
+
+async function reservarHorarioPreReservado(
+  horarioId: Types.ObjectId,
+  preReservaId: Types.ObjectId,
+  conversa_id: string,
+): Promise<IHorario> {
+  const agora = new Date();
+
+  const horario = await HorarioModel.findOneAndUpdate(
+    {
+      _id: horarioId,
+      status: "pre_reservado",
+      "pre_reserva.pre_reserva_id": preReservaId,
+      "pre_reserva.conversa_id": conversa_id,
+      "pre_reserva.expira_em": { $gt: agora },
+    },
+    {
+      $set: { status: "agendado" },
+    },
+    { new: true },
+  );
+
+  if (!horario) {
+    throw new AppError("PRE_RESERVA_EXPIRADA", 409);
+  }
+
+  return horario;
 }
 
 export interface ConfirmarAgendamentoInput {
@@ -67,25 +95,9 @@ export async function confirmarAgendamento(
 
   const preReservaId = toObjectId(dados.pre_reserva_id);
   const horarioId = toObjectId(dados.horario_id);
-  const agora = new Date();
 
-  const horario = await HorarioModel.findOneAndUpdate(
-    {
-      _id: horarioId,
-      status: "pre_reservado",
-      "pre_reserva.pre_reserva_id": preReservaId,
-      "pre_reserva.conversa_id": dados.conversa_id,
-      "pre_reserva.expira_em": { $gt: agora },
-    },
-    {
-      $set: { status: "agendado" },
-    },
-    { new: true },
-  );
-
-  if (!horario) {
-    throw new AppError("PRE_RESERVA_EXPIRADA", 409);
-  }
+  const horario = await reservarHorarioPreReservado(horarioId, preReservaId, dados.conversa_id);
+  await assertHorarioReferenciasAtivas(horario);
 
   const codigo_agendamento = await generateProtocolo();
 
@@ -205,6 +217,7 @@ export async function cancelarAgendamento(
 export interface RemarcarAgendamentoInput {
   codigo: string;
   novo_horario_id: string | Types.ObjectId;
+  pre_reserva_id: string | Types.ObjectId;
   conversa_id: string;
   motivo: string;
 }
@@ -232,16 +245,23 @@ export async function remarcarAgendamento(
   validarAntecedenciaRemarcacao(agendamento.inicio_em);
 
   const novoHorarioId = toObjectId(input.novo_horario_id);
+  const preReservaId = toObjectId(input.pre_reserva_id);
   const dadosAnteriores = agendamento.toObject();
 
-  const novoHorario = await HorarioModel.findOneAndUpdate(
-    { _id: novoHorarioId, status: "disponivel" },
-    { $set: { status: "agendado" } },
-    { new: true },
+  const novoHorario = await reservarHorarioPreReservado(
+    novoHorarioId,
+    preReservaId,
+    input.conversa_id,
   );
 
-  if (!novoHorario) {
-    throw new AppError("HORARIO_INDISPONIVEL", 409);
+  await assertHorarioReferenciasAtivas(novoHorario);
+
+  if (!novoHorario.servico_id.equals(agendamento.servico_id)) {
+    await HorarioModel.updateOne(
+      { _id: novoHorario._id },
+      { $set: { status: "pre_reservado" } },
+    );
+    throw new AppError("SERVICO_INCOMPATIVEL", 409);
   }
 
   const codigo_agendamento = await generateProtocolo();
@@ -265,7 +285,10 @@ export async function remarcarAgendamento(
       codigo_agendamento_anterior: agendamento.codigo_agendamento,
     });
   } catch (err) {
-    await HorarioModel.updateOne({ _id: novoHorario._id }, { $set: { status: "disponivel" } });
+    await HorarioModel.updateOne(
+      { _id: novoHorario._id },
+      { $set: { status: "pre_reservado" } },
+    );
     throw err;
   }
 

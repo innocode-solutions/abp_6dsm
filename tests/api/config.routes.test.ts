@@ -17,6 +17,16 @@ vi.mock("../../src/api/config/env.js", () => ({
   },
 }));
 
+const bloquearHorariosFuturosPorFuncionarioMock = vi.fn();
+const bloquearHorariosFuturosPorServicoMock = vi.fn();
+
+vi.mock("../../src/api/service/horarioDesativacao.service.js", () => ({
+  bloquearHorariosFuturosPorFuncionario: (...args: unknown[]) =>
+    bloquearHorariosFuturosPorFuncionarioMock(...args),
+  bloquearHorariosFuturosPorServico: (...args: unknown[]) =>
+    bloquearHorariosFuturosPorServicoMock(...args),
+}));
+
 const originalEnv = { ...process.env };
 const BASE = "/api/v1/agendamentos/admin";
 const ID = "507f1f77bcf86cd799439011";
@@ -62,6 +72,8 @@ describe(
       vi.resetModules();
       process.env = { ...originalEnv };
       setMinimalValidEnv();
+      bloquearHorariosFuturosPorFuncionarioMock.mockResolvedValue(0);
+      bloquearHorariosFuturosPorServicoMock.mockResolvedValue(0);
     });
 
     afterEach(() => {
@@ -166,6 +178,7 @@ describe(
         expect(aindaExiste).not.toBeNull();
         expect(aindaExiste!.ativo).toBe(false);
         expect(findByIdSpy).toHaveBeenCalled();
+        expect(bloquearHorariosFuturosPorFuncionarioMock).toHaveBeenCalledWith(ID);
       } finally {
         await close();
       }

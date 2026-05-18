@@ -32,6 +32,14 @@ vi.mock("../../../src/api/models/Horario.model.js", () => ({
   },
 }));
 
+const listarIdsFuncionariosAtivosMock = vi.fn();
+const listarIdsServicosAtivosMock = vi.fn();
+
+vi.mock("../../../src/api/service/validacao/referencias.service.js", () => ({
+  listarIdsFuncionariosAtivos: (...args: unknown[]) => listarIdsFuncionariosAtivosMock(...args),
+  listarIdsServicosAtivos: (...args: unknown[]) => listarIdsServicosAtivosMock(...args),
+}));
+
 describe("horario.service gerarHorarios", () => {
   const funcionarioId = new mongoose.Types.ObjectId();
   const servicoId = new mongoose.Types.ObjectId();
@@ -39,6 +47,8 @@ describe("horario.service gerarHorarios", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    listarIdsFuncionariosAtivosMock.mockResolvedValue([funcionarioId]);
+    listarIdsServicosAtivosMock.mockResolvedValue([servicoId]);
     feriadoFindMock.mockReturnValue({ lean: () => Promise.resolve([]) });
     bloqueioFindMock.mockReturnValue({ lean: () => Promise.resolve([]) });
     horarioFindMock.mockReturnValue({

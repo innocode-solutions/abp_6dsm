@@ -4,6 +4,7 @@ import Funcionario, {
   FUNCIONARIO_PERFIS,
   type FuncionarioPerfil,
 } from "../../models/Funcionario.model.js";
+import { bloquearHorariosFuturosPorFuncionario } from "../../service/horarioDesativacao.service.js";
 import { AppError } from "../../types/common.types.js";
 import { hashSenha } from "../../utils/passwordHelper.js";
 import { success } from "../../utils/responseHelper.js";
@@ -113,14 +114,22 @@ export async function atualizar(
       delete dadosAtualizacao.senha;
     }
 
+    const id = paramId(req.params.id);
+    const anterior = await Funcionario.findById(id).select("ativo").lean();
+
     const funcionario = await Funcionario.findByIdAndUpdate(
-      paramId(req.params.id),
+      id,
       { $set: dadosAtualizacao },
       { new: true, runValidators: true },
     );
     if (!funcionario) {
       throw new AppError("NAO_ENCONTRADO", 404);
     }
+
+    if (anterior?.ativo && funcionario.ativo === false) {
+      await bloquearHorariosFuturosPorFuncionario(funcionario._id);
+    }
+
     res.status(200).json(success(funcionarioSemSenha(funcionario)));
   } catch (error) {
     next(error);
@@ -133,14 +142,18 @@ export async function remover(
   next: NextFunction,
 ): Promise<void> {
   try {
+    const id = paramId(req.params.id);
     const funcionario = await Funcionario.findByIdAndUpdate(
-      paramId(req.params.id),
+      id,
       { $set: { ativo: false } },
       { new: true },
     );
     if (!funcionario) {
       throw new AppError("NAO_ENCONTRADO", 404);
     }
+
+    await bloquearHorariosFuturosPorFuncionario(funcionario._id);
+
     res.status(200).json(success(funcionarioSemSenha(funcionario)));
   } catch (error) {
     next(error);

@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 
 import * as horarioService from "../../service/horario.service.js";
 import { success } from "../../utils/responseHelper.js";
+import { assertObjectId } from "../../utils/validationHelper.js";
 
 function queryString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
@@ -23,6 +24,8 @@ export async function listarHorariosDisponiveis(
 ): Promise<void> {
   try {
     const servico_id = queryString(req.query.servico_id) ?? "";
+    assertObjectId(servico_id, "servico_id");
+
     const deRaw = queryString(req.query.de);
     const ateRaw = queryString(req.query.ate);
     const de = deRaw ? new Date(deRaw) : undefined;

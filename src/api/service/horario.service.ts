@@ -9,6 +9,12 @@ import RegraDisponibilidadeModel from "../models/RegraDisponibilidade.model.js";
 import { StatusHorario, type IHorarioExibicao } from "../types/horario.types.js";
 import { AppError } from "../types/common.types.js";
 import { toBrasiliaDisplay } from "../utils/dateHelper.js";
+import { assertObjectId } from "../utils/validationHelper.js";
+import {
+  assertServicoExisteEAtivo,
+  listarIdsFuncionariosAtivos,
+  listarIdsServicosAtivos,
+} from "./validacao/referencias.service.js";
 
 const TIMEZONE_BR = "America/Sao_Paulo";
 const DIAS_PADRAO = 30;
@@ -36,6 +42,15 @@ export async function getHorariosDisponiveis(
   ate?: Date,
   limite?: number,
 ): Promise<IHorarioExibicao[]> {
+  const servicoIdStr = typeof servico_id === "string" ? servico_id : servico_id.toString();
+  assertObjectId(servicoIdStr, "servico_id");
+  await assertServicoExisteEAtivo(servico_id);
+
+  const funcionariosAtivos = await listarIdsFuncionariosAtivos();
+  if (funcionariosAtivos.length === 0) {
+    return [];
+  }
+
   const inicioIntervalo = de ?? inicioDoDiaBrasilia();
   const fimBase = ate ?? addDays(inicioIntervalo, DIAS_PADRAO);
   const fimIntervalo = fimDoDiaBrasilia(fimBase);
@@ -43,6 +58,7 @@ export async function getHorariosDisponiveis(
 
   const horarios = await HorarioModel.find({
     servico_id: toObjectId(servico_id),
+    funcionario_id: { $in: funcionariosAtivos },
     status: "disponivel",
     inicio_em: { $gte: inicioIntervalo, $lte: fimIntervalo },
   })
@@ -113,10 +129,20 @@ export async function listarHorariosAdmin(
   const query: Record<string, unknown> = {};
 
   if (filtros.funcionario_id) {
+    const idStr =
+      typeof filtros.funcionario_id === "string"
+        ? filtros.funcionario_id
+        : filtros.funcionario_id.toString();
+    assertObjectId(idStr, "funcionario_id");
     query.funcionario_id = toObjectId(filtros.funcionario_id);
   }
 
   if (filtros.servico_id) {
+    const idStr =
+      typeof filtros.servico_id === "string"
+        ? filtros.servico_id
+        : filtros.servico_id.toString();
+    assertObjectId(idStr, "servico_id");
     query.servico_id = toObjectId(filtros.servico_id);
   }
 
@@ -163,6 +189,23 @@ export async function gerarHorarios(
     return { horarios_criados: 0, de: inicio, ate: fim };
   }
 
+  const [funcionariosAtivos, servicosAtivos] = await Promise.all([
+    listarIdsFuncionariosAtivos(),
+    listarIdsServicosAtivos(),
+  ]);
+  const funcionariosAtivosSet = new Set(funcionariosAtivos.map((id) => id.toString()));
+  const servicosAtivosSet = new Set(servicosAtivos.map((id) => id.toString()));
+
+  const regrasValidas = regras.filter(
+    (regra) =>
+      funcionariosAtivosSet.has(regra.funcionario_id.toString()) &&
+      servicosAtivosSet.has(regra.servico_id.toString()),
+  );
+
+  if (regrasValidas.length === 0) {
+    return { horarios_criados: 0, de: inicio, ate: fim };
+  }
+
   const dias = cadaDiaBrasilia(inicio, fim);
   const datasIso = dias.map((dia) => dataIsoBrasilia(dia));
 
@@ -194,7 +237,7 @@ export async function gerarHorarios(
 
     const diaSemana = getDay(toZonedTime(dia, TIMEZONE_BR));
 
-    for (const regra of regras) {
+    for (const regra of regrasValidas) {
       if (regra.dia_semana !== diaSemana) {
         continue;
       }

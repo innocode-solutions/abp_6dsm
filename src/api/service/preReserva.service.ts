@@ -2,6 +2,8 @@ import mongoose, { type Types } from "mongoose";
 
 import HorarioModel, { type IHorario } from "../models/Horario.model.js";
 import { AppError } from "../types/common.types.js";
+import { validarAntecedenciaHorario } from "../utils/horarioAntecedencia.js";
+import { assertHorarioReferenciasAtivas } from "./validacao/referencias.service.js";
 
 export interface CriarPreReservaInput {
   horario_id: string | Types.ObjectId;
@@ -17,6 +19,18 @@ export interface CriarPreReservaResultado {
 
 function toObjectId(id: string | Types.ObjectId): Types.ObjectId {
   return typeof id === "string" ? new mongoose.Types.ObjectId(id) : id;
+}
+
+async function liberarHorario(horario_id: Types.ObjectId): Promise<void> {
+  await HorarioModel.updateOne(
+    { _id: horario_id },
+    {
+      $set: {
+        status: "disponivel",
+        pre_reserva: null,
+      },
+    },
+  );
 }
 
 export async function criarPreReserva({
@@ -49,6 +63,14 @@ export async function criarPreReserva({
 
   if (!horario) {
     throw new AppError("HORARIO_INDISPONIVEL", 409);
+  }
+
+  try {
+    validarAntecedenciaHorario(horario.inicio_em);
+    await assertHorarioReferenciasAtivas(horario);
+  } catch (err) {
+    await liberarHorario(horario._id);
+    throw err;
   }
 
   return { horario, pre_reserva_id };

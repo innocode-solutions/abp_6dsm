@@ -32,6 +32,10 @@ vi.mock("../../../src/api/service/auditoria.service.js", () => ({
   registrarAuditoria: (...args: unknown[]) => registrarAuditoriaMock(...args),
 }));
 
+vi.mock("../../../src/api/service/validacao/referencias.service.js", () => ({
+  assertHorarioReferenciasAtivas: vi.fn().mockResolvedValue(undefined),
+}));
+
 function horarioBase(overrides: Record<string, unknown> = {}) {
   const id = new mongoose.Types.ObjectId();
   return {
@@ -152,6 +156,7 @@ describe("agendamento.service", () => {
       remarcarAgendamento({
         codigo: "AGD-2026-000010",
         novo_horario_id: new mongoose.Types.ObjectId(),
+        pre_reserva_id: new mongoose.Types.ObjectId(),
         conversa_id: "conv-1",
         motivo: "Conflito de agenda",
       }),

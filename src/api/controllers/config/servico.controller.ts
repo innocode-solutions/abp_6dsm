@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 
 import Servico from "../../models/Servico.model.js";
+import { bloquearHorariosFuturosPorServico } from "../../service/horarioDesativacao.service.js";
 import { AppError } from "../../types/common.types.js";
 import { success } from "../../utils/responseHelper.js";
 import {
@@ -69,14 +70,22 @@ export async function atualizar(
   next: NextFunction,
 ): Promise<void> {
   try {
+    const id = paramId(req.params.id);
+    const anterior = await Servico.findById(id).select("ativo").lean();
+
     const servico = await Servico.findByIdAndUpdate(
-      paramId(req.params.id),
+      id,
       { $set: req.body },
       { new: true, runValidators: true },
     );
     if (!servico) {
       throw new AppError("NAO_ENCONTRADO", 404);
     }
+
+    if (anterior?.ativo && servico.ativo === false) {
+      await bloquearHorariosFuturosPorServico(servico._id);
+    }
+
     res.status(200).json(success(servico));
   } catch (error) {
     next(error);
@@ -89,14 +98,18 @@ export async function remover(
   next: NextFunction,
 ): Promise<void> {
   try {
+    const id = paramId(req.params.id);
     const servico = await Servico.findByIdAndUpdate(
-      paramId(req.params.id),
+      id,
       { $set: { ativo: false } },
       { new: true },
     );
     if (!servico) {
       throw new AppError("NAO_ENCONTRADO", 404);
     }
+
+    await bloquearHorariosFuturosPorServico(servico._id);
+
     res.status(200).json(success(servico));
   } catch (error) {
     next(error);

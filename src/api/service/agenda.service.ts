@@ -4,6 +4,7 @@ import mongoose, { type Types } from "mongoose";
 
 import AgendamentoModel, { type IAgendamento } from "../models/Agendamento.model.js";
 import type { AgendamentoStatus } from "../models/Agendamento.model.js";
+import { assertObjectId } from "../utils/validationHelper.js";
 
 const TIMEZONE_BR = "America/Sao_Paulo";
 
@@ -40,6 +41,11 @@ export async function listarAgenda(filtros: ListarAgendaFiltros): Promise<IAgend
   }
 
   if (filtros.funcionario_id) {
+    const idStr =
+      typeof filtros.funcionario_id === "string"
+        ? filtros.funcionario_id
+        : filtros.funcionario_id.toString();
+    assertObjectId(idStr, "funcionario_id");
     query.funcionario_id = toObjectId(filtros.funcionario_id);
   }
 

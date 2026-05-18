@@ -3,6 +3,7 @@ import mongoose, { type Types } from "mongoose";
 import BloqueioModel, { type IBloqueio } from "../models/Bloqueio.model.js";
 import HorarioModel from "../models/Horario.model.js";
 import { AppError } from "../types/common.types.js";
+import { assertFuncionarioExisteEAtivo } from "./validacao/referencias.service.js";
 
 function toObjectId(id: string | Types.ObjectId): Types.ObjectId {
   return typeof id === "string" ? new mongoose.Types.ObjectId(id) : id;
@@ -28,6 +29,8 @@ export async function criarBloqueio(dados: CriarBloqueioInput): Promise<CriarBlo
 
   const funcionario_id = toObjectId(dados.funcionario_id);
   const criado_por = toObjectId(dados.criado_por);
+
+  await assertFuncionarioExisteEAtivo(funcionario_id);
 
   const bloqueio = await BloqueioModel.create({
     funcionario_id,

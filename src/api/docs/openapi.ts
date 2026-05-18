@@ -895,9 +895,10 @@ export const openApiDocument: OpenApiDocument = {
       },
       RemarcarAgendamentoRequest: {
         type: "object",
-        required: ["novo_horario_id", "conversa_id", "motivo"],
+        required: ["novo_horario_id", "pre_reserva_id", "conversa_id", "motivo"],
         properties: {
           novo_horario_id: { type: "string" },
+          pre_reserva_id: { type: "string" },
           conversa_id: { type: "string", example: "whatsapp_abc123" },
           motivo: { type: "string", example: "Conflito de agenda" },
         },

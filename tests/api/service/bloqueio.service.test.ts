@@ -18,6 +18,10 @@ vi.mock("../../../src/api/models/Horario.model.js", () => ({
   },
 }));
 
+vi.mock("../../../src/api/service/validacao/referencias.service.js", () => ({
+  assertFuncionarioExisteEAtivo: vi.fn().mockResolvedValue(undefined),
+}));
+
 describe("bloqueio.service", () => {
   const funcionarioId = new mongoose.Types.ObjectId();
   const criadoPorId = new mongoose.Types.ObjectId();

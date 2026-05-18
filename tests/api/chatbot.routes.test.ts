@@ -137,6 +137,26 @@ describe("rotas chatbot /api/v1/agendamentos", () => {
     }
   });
 
+  it("GET /horarios-disponiveis sem servico_id válido retorna 400 ERRO_VALIDACAO", async () => {
+    const { createApp } = await import("../../src/api/app.js");
+    const app = createApp();
+    const { port, close } = await listenOnce(app);
+
+    try {
+      const res = await fetch(
+        `http://127.0.0.1:${port}${BASE}/horarios-disponiveis?servico_id=invalido`,
+        { headers: authHeaders() },
+      );
+      const body = (await res.json()) as { erro: { codigo: string } };
+
+      expect(res.status).toBe(400);
+      expect(body.erro.codigo).toBe("ERRO_VALIDACAO");
+      expect(getHorariosDisponiveisMock).not.toHaveBeenCalled();
+    } finally {
+      await close();
+    }
+  });
+
   it("GET /horarios-disponiveis?servico_id=xxx retorna 200 com horários", async () => {
     const servicoId = new mongoose.Types.ObjectId().toString();
     const horarios = [{ _id: "h1", exibicao: { data: "20/05/2026", hora: "09:00" } }];
@@ -246,6 +266,7 @@ describe("rotas chatbot /api/v1/agendamentos", () => {
 
     const payload = {
       novo_horario_id: novoHorarioId,
+      pre_reserva_id: new mongoose.Types.ObjectId().toString(),
       conversa_id: "conv-remarcar",
       motivo: "Conflito de agenda",
     };
