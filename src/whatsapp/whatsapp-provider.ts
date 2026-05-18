@@ -6,12 +6,15 @@ import { IncomingMessage, MessagingProvider } from "../types/messaging";
 
 export class WhatsAppProvider implements MessagingProvider {
   private static readonly QR_RENDER_COOLDOWN_MS = 180000; // 3 minutos;;
+  private static readonly DEFAULT_USER_AGENT =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36";
 
   private client: Client;
   private onMessageHandler: ((message: IncomingMessage) => Promise<void>) | null = null;
   private readonly pairingPhoneNumber: string | null;
   private readonly authPath: string;
   private readonly browserLogEnabled: boolean;
+  private readonly browserUserAgent: string;
   private readonly pairingRetryDelayMs: number;
   private diagnosticsRegistered = false;
   private pairingRetryTimeout: NodeJS.Timeout | null = null;
@@ -21,6 +24,9 @@ export class WhatsAppProvider implements MessagingProvider {
     const chromePath = process.env.PUPPETEER_EXECUTABLE_PATH?.trim();
     this.authPath = process.env.WHATSAPP_AUTH_PATH?.trim() || ".wwebjs_auth";
     this.browserLogEnabled = this.isTruthy(process.env.WHATSAPP_BROWSER_LOGS);
+    this.browserUserAgent =
+      process.env.WHATSAPP_USER_AGENT?.trim() ||
+      WhatsAppProvider.DEFAULT_USER_AGENT;
     this.pairingRetryDelayMs = this.parseRetryDelay(
       process.env.WHATSAPP_PAIRING_RETRY_DELAY_MS
     );
@@ -28,8 +34,13 @@ export class WhatsAppProvider implements MessagingProvider {
       process.env.WHATSAPP_PHONE_NUMBER
     );
 
+    const authStrategy = this.buildAuthStrategy();
+    const puppetHeadless = this.parseBooleanEnv(process.env.PUPPETEER_HEADLESS, true);
+    const puppetUserDataDir = process.env.PUPPETEER_USER_DATA_DIR?.trim();
+    const useUserDataDir = authStrategy instanceof LocalAuth && Boolean(puppetUserDataDir);
+
     this.client = new Client({
-      authStrategy: this.buildAuthStrategy(),
+      authStrategy,
       ...(this.pairingPhoneNumber
         ? {
             pairWithPhoneNumber: {
@@ -40,7 +51,7 @@ export class WhatsAppProvider implements MessagingProvider {
           }
         : {}),
       puppeteer: {
-        headless: true,
+        headless: puppetHeadless,
         dumpio: this.browserLogEnabled,
         protocolTimeout: 120000,
         args: [
@@ -58,8 +69,10 @@ export class WhatsAppProvider implements MessagingProvider {
           "--no-default-browser-check",
           "--window-size=1280,720"
         ],
-        ...(chromePath ? { executablePath: chromePath } : {})
-      }
+        ...(chromePath ? { executablePath: chromePath } : {}),
+        ...(useUserDataDir ? { userDataDir: puppetUserDataDir } : {})
+      },
+      userAgent: this.browserUserAgent
     });
 
     this.registerEvents();
@@ -234,6 +247,7 @@ export class WhatsAppProvider implements MessagingProvider {
     console.log(
       `[WhatsApp] Chromium: ${process.env.PUPPETEER_EXECUTABLE_PATH || "padrao do Puppeteer"}`
     );
+    console.log(`[WhatsApp] User-Agent do navegador: ${this.browserUserAgent}`);
     console.log(`[WhatsApp] Diretorio de autenticacao: ${this.authPath}`);
     console.log(
       `[WhatsApp] Pareamento por codigo: ${this.pairingPhoneNumber ? "ativado" : "desativado"}`
@@ -255,6 +269,14 @@ export class WhatsAppProvider implements MessagingProvider {
     return setInterval(() => {
       this.attachBrowserDiagnostics();
     }, 1000);
+  }
+
+  private parseBooleanEnv(value: string | undefined, defaultValue: boolean): boolean {
+    if (value === undefined || value.trim() === "") {
+      return defaultValue;
+    }
+
+    return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
   }
 
   private wrapPairingCodeRequest(): void {

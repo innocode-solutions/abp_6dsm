@@ -39,6 +39,7 @@ describe("WhatsAppProvider", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.WHATSAPP_PHONE_NUMBER;
+    delete process.env.WHATSAPP_USER_AGENT;
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-15T10:00:00.000Z"));
   });
@@ -70,6 +71,28 @@ describe("WhatsAppProvider", () => {
           showNotification: true,
           intervalMs: 180000
         }
+      })
+    );
+  });
+
+  it("deve usar user-agent moderno por padrao", () => {
+    new WhatsAppProvider();
+
+    expect(clientMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userAgent: expect.stringContaining("Chrome/139.0.0.0")
+      })
+    );
+  });
+
+  it("deve permitir sobrescrever user-agent por variavel de ambiente", () => {
+    process.env.WHATSAPP_USER_AGENT = "Custom WhatsApp Browser";
+
+    new WhatsAppProvider();
+
+    expect(clientMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userAgent: "Custom WhatsApp Browser"
       })
     );
   });
