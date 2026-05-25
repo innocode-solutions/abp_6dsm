@@ -6,6 +6,7 @@ const onMock = vi.fn();
 const initializeMock = vi.fn();
 const clientMock = vi.fn();
 const localAuthMock = vi.fn();
+const remoteAuthMock = vi.fn();
 
 vi.mock("qrcode-terminal", () => ({
   default: {
@@ -29,16 +30,28 @@ vi.mock("whatsapp-web.js", () => {
     }
   }
 
+  class MockRemoteAuth {
+    constructor(...args: unknown[]) {
+      remoteAuthMock(...args);
+    }
+  }
+
   return {
     Client: MockClient,
-    LocalAuth: MockLocalAuth
+    LocalAuth: MockLocalAuth,
+    RemoteAuth: MockRemoteAuth
   };
 });
 
 describe("WhatsAppProvider", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.WHATSAPP_AUTH_CLIENT_ID;
     delete process.env.WHATSAPP_PHONE_NUMBER;
+    delete process.env.WHATSAPP_PAIRING_FALLBACK_QR;
+    delete process.env.WHATSAPP_PAIRING_MAX_ATTEMPTS;
+    delete process.env.WHATSAPP_PAIRING_SHOW_NOTIFICATION;
+    delete process.env.WHATSAPP_USER_AGENT;
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-15T10:00:00.000Z"));
   });
@@ -58,8 +71,37 @@ describe("WhatsAppProvider", () => {
     expect(initializeMock).toHaveBeenCalledTimes(1);
   });
 
+  it("deve permitir sobrescrever clientId da sessao por variavel de ambiente", () => {
+    process.env.WHATSAPP_AUTH_CLIENT_ID = "proconbot-jacarei-v2";
+
+    new WhatsAppProvider();
+
+    expect(localAuthMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: "proconbot-jacarei-v2"
+      })
+    );
+  });
+
   it("deve habilitar pareamento por codigo quando houver numero configurado", () => {
     process.env.WHATSAPP_PHONE_NUMBER = "+55 (11) 99999-9999";
+
+    new WhatsAppProvider();
+
+    expect(clientMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pairWithPhoneNumber: {
+          phoneNumber: "5511999999999",
+          showNotification: false,
+          intervalMs: 180000
+        }
+      })
+    );
+  });
+
+  it("deve permitir ativar notificacao de pareamento por variavel de ambiente", () => {
+    process.env.WHATSAPP_PHONE_NUMBER = "+55 (11) 99999-9999";
+    process.env.WHATSAPP_PAIRING_SHOW_NOTIFICATION = "true";
 
     new WhatsAppProvider();
 
@@ -70,6 +112,28 @@ describe("WhatsAppProvider", () => {
           showNotification: true,
           intervalMs: 180000
         }
+      })
+    );
+  });
+
+  it("deve usar user-agent moderno por padrao", () => {
+    new WhatsAppProvider();
+
+    expect(clientMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userAgent: expect.stringContaining("Chrome/139.0.0.0")
+      })
+    );
+  });
+
+  it("deve permitir sobrescrever user-agent por variavel de ambiente", () => {
+    process.env.WHATSAPP_USER_AGENT = "Custom WhatsApp Browser";
+
+    new WhatsAppProvider();
+
+    expect(clientMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userAgent: "Custom WhatsApp Browser"
       })
     );
   });

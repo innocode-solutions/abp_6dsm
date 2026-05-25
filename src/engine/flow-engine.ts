@@ -44,6 +44,7 @@ export class FlowEngine {
     answer: string
   ): FlowEngineResult {
     this.validateSessionFlow(flow, session);
+    this.ensureSessionState(session);
 
     if (session.finished) {
       throw new Error("Flow already finished.");
@@ -167,5 +168,9 @@ export class FlowEngine {
         `Session flowId "${session.flowId}" does not match flow "${flow.id}".`
       );
     }
+  }
+
+  private ensureSessionState(session: FlowSession): void {
+    session.answers ??= {};
   }
 }
