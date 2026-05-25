@@ -1,0 +1,341 @@
+import type { ReactNode } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameDay,
+  isSameMonth,
+  startOfMonth,
+  startOfWeek,
+} from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+import { Calendar as CalIcon, Check, ChevronLeft, ChevronRight, ClipboardList, Clock, Plus, Search, X } from 'lucide-react'
+import {
+  agendamentosListaMock,
+  agendamentosMetricas,
+  diasComAgendamentoMaio2025,
+  type StatusAgendamento,
+} from '../data/mockData'
+import { useMainLayoutOutlet } from '../hooks/useMainLayoutOutlet'
+
+const initialMonth = new Date(2025, 4, 1)
+const initialSelected = new Date(2025, 4, 24)
+
+function statusRowClass(s: StatusAgendamento) {
+  if (s === 'Confirmado') return 'bg-sky-50 text-sky-900'
+  if (s === 'Pendente') return 'bg-amber-50 text-amber-900'
+  return 'bg-red-50 text-red-900'
+}
+
+function statusDot(s: StatusAgendamento) {
+  if (s === 'Confirmado') return 'bg-[#0D1B4B]'
+  if (s === 'Pendente') return 'bg-amber-500'
+  return 'bg-[#CC2229]'
+}
+
+export function AgendamentosPage() {
+  const { setHeaderExtra } = useMainLayoutOutlet()
+  const [month, setMonth] = useState(initialMonth)
+  const [selected, setSelected] = useState(initialSelected)
+  const [quick, setQuick] = useState<'Todos' | StatusAgendamento>('Todos')
+  const [q, setQ] = useState('')
+
+  useEffect(() => {
+    setHeaderExtra(
+      <button
+        type="button"
+        className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600"
+      >
+        <Plus className="size-4" aria-hidden />
+        Novo Agendamento
+      </button>,
+    )
+    return () => setHeaderExtra(null)
+  }, [setHeaderExtra])
+
+  const gridDays = useMemo(() => {
+    const start = startOfWeek(startOfMonth(month), { weekStartsOn: 0 })
+    const end = endOfWeek(endOfMonth(month), { weekStartsOn: 0 })
+    return eachDayOfInterval({ start, end })
+  }, [month])
+
+  const filteredList = useMemo(() => {
+    return agendamentosListaMock.filter((a) => {
+      if (quick !== 'Todos' && a.status !== quick) return false
+      if (q.trim() && !a.nome.toLowerCase().includes(q.toLowerCase())) return false
+      return true
+    })
+  }, [quick, q])
+
+  return (
+    <div className="flex flex-1 flex-col gap-6 pb-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric
+          icon={<CalIcon className="size-5 text-[#2563EB]" />}
+          label="Total de Agendamentos"
+          value={agendamentosMetricas.total.valor}
+          sub={agendamentosMetricas.total.sub}
+          subPositive={agendamentosMetricas.total.positivo}
+        />
+        <Metric
+          icon={<Check className="size-5 text-[#2563EB]" />}
+          label="Confirmados"
+          value={agendamentosMetricas.confirmados.valor}
+          sub={agendamentosMetricas.confirmados.sub}
+        />
+        <Metric
+          icon={<ClipboardList className="size-5 text-amber-500" />}
+          label="Pendentes"
+          value={agendamentosMetricas.pendentes.valor}
+          sub={agendamentosMetricas.pendentes.sub}
+        />
+        <Metric
+          icon={<X className="size-5 text-[#CC2229]" />}
+          label="Cancelados"
+          value={agendamentosMetricas.cancelados.valor}
+          sub={agendamentosMetricas.cancelados.sub}
+          subPositive={agendamentosMetricas.cancelados.positivo}
+        />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-12">
+        <div className="flex flex-col gap-4 lg:col-span-4">
+          <section className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <button
+                type="button"
+                className="rounded-lg p-2 hover:bg-slate-100"
+                onClick={() => setMonth((m) => addMonths(m, -1))}
+                aria-label="Mês anterior"
+              >
+                <ChevronLeft className="size-5 text-slate-600" />
+              </button>
+              <p className="text-sm font-semibold capitalize text-[#0D1B4B]">
+                {format(month, 'MMMM yyyy', { locale: ptBR })}
+              </p>
+              <button
+                type="button"
+                className="rounded-lg p-2 hover:bg-slate-100"
+                onClick={() => setMonth((m) => addMonths(m, 1))}
+                aria-label="Próximo mês"
+              >
+                <ChevronRight className="size-5 text-slate-600" />
+              </button>
+            </div>
+            <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase text-slate-400">
+              {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
+                <div key={d} className="py-2">
+                  {d}
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {gridDays.map((day) => {
+                const inMonth = isSameMonth(day, month)
+                const isSelected = isSameDay(day, selected)
+                const isToday = isSameDay(day, initialSelected)
+                const dayNum = day.getDate()
+                const hasDot =
+                  day.getFullYear() === 2025 &&
+                  day.getMonth() === 4 &&
+                  diasComAgendamentoMaio2025.has(dayNum)
+
+                return (
+                  <button
+                    key={day.toISOString()}
+                    type="button"
+                    disabled={!inMonth}
+                    onClick={() => inMonth && setSelected(day)}
+                    className={[
+                      'relative flex h-10 flex-col items-center justify-center rounded-lg text-sm font-medium transition',
+                      !inMonth ? 'text-slate-300' : 'text-slate-800 hover:bg-slate-50',
+                      isSelected ? 'bg-[#2563EB] text-white hover:bg-blue-600' : '',
+                      isToday && !isSelected ? 'ring-2 ring-[#2563EB]/40' : '',
+                    ].join(' ')}
+                  >
+                    <span>{dayNum}</span>
+                    {hasDot && inMonth ? (
+                      <span
+                        className={[
+                          'mt-0.5 h-1 w-1 rounded-full',
+                          isSelected ? 'bg-white' : 'bg-[#2563EB]',
+                        ].join(' ')}
+                      />
+                    ) : (
+                      <span className="mt-0.5 h-1 w-1" />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-[#0D1B4B]">Filtros Rápidos</h3>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(['Todos', 'Confirmado', 'Pendente'] as const).map((f) => {
+                const active =
+                  f === 'Todos' ? quick === 'Todos' : quick === (f as StatusAgendamento)
+                return (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setQuick(f === 'Todos' ? 'Todos' : f)}
+                    className={[
+                      'rounded-full px-3 py-1.5 text-xs font-semibold transition',
+                      active
+                        ? 'bg-sky-100 text-[#0D1B4B]'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                    ].join(' ')}
+                  >
+                    {f === 'Todos' ? 'Todos' : f + 's'}
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+        </div>
+
+        <section className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm lg:col-span-8 lg:p-6">
+          <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-[#0D1B4B]">Próximos Agendamentos</h2>
+              <p className="text-xs text-slate-500">
+                Dia selecionado:{' '}
+                <span className="font-semibold text-slate-700">
+                  {format(selected, 'dd/MM/yyyy', { locale: ptBR })}
+                </span>
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                Dia {format(selected, 'dd/MM', { locale: ptBR })}
+              </span>
+              <div className="relative min-w-[200px] flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Buscar cliente..."
+                  className="w-full rounded-xl border border-slate-200 py-2 pl-10 pr-3 text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/25"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full border-collapse text-left text-sm">
+              <thead className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-3 py-3">Nome do Cliente</th>
+                  <th className="px-3 py-3">Tipo de Serviço</th>
+                  <th className="px-3 py-3">Horário</th>
+                  <th className="px-3 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredList.map((a) => (
+                  <tr key={a.id} className="hover:bg-slate-50/60">
+                    <td className="px-3 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#2563EB] text-xs font-bold text-white">
+                          {a.iniciais}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-900">{a.nome}</p>
+                          <p className="text-xs text-slate-500">CPF {a.cpfMascarado}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="max-w-xs px-3 py-4">
+                      <p className="font-medium text-slate-800">{a.tipoServico}</p>
+                      <p className="text-xs text-slate-500">{a.descricao}</p>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-4 text-slate-700">
+                      <span className="inline-flex items-center gap-1.5 text-sm">
+                        <Clock className="size-4 text-slate-400" />
+                        {a.horario}
+                      </span>
+                    </td>
+                    <td className="px-3 py-4">
+                      <span
+                        className={[
+                          'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold',
+                          statusRowClass(a.status),
+                        ].join(' ')}
+                      >
+                        <span className={`size-1.5 rounded-full ${statusDot(a.status)}`} />
+                        {a.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-4 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+            <p>
+              Mostrando <span className="font-semibold">1</span>-
+              <span className="font-semibold">{filteredList.length}</span> de{' '}
+              <span className="font-semibold">12</span> agendamentos
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Anterior
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Próxima
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  )
+}
+
+function Metric({
+  icon,
+  label,
+  value,
+  sub,
+  subPositive,
+}: {
+  icon: ReactNode
+  label: string
+  value: number
+  sub: string
+  subPositive?: boolean
+}) {
+  const subColor =
+    subPositive === undefined
+      ? 'text-slate-500'
+      : subPositive
+        ? 'text-emerald-600'
+        : 'text-[#CC2229]'
+
+  return (
+    <article className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-xs font-medium text-slate-500">{label}</p>
+          <p className="mt-2 text-2xl font-bold text-[#0D1B4B]">{value}</p>
+          <p className={`mt-1 text-xs font-semibold ${subColor}`}>{sub}</p>
+        </div>
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-50">
+          {icon}
+        </div>
+      </div>
+    </article>
+  )
+}
