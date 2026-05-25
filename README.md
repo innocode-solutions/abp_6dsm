@@ -7,6 +7,7 @@
 <p align="center">
   <a href="#sobre">Sobre</a> |
   <a href="#visao">Visão do Produto</a> |
+  <a href="#inicializacao">Como Inicializar</a> 
   <a href="#backlog">Product Backlog</a> |
   <a href="#sprints">Sprints</a> |
   <a href="#fluxos">Fluxos</a> |
@@ -56,6 +57,142 @@ Um chatbot inteligente acessível via **WhatsApp** que fornece orientação inic
 <h3>Objetivo</h3>
 
 Auxiliar cidadãos a entender seus direitos e os próximos passos para resolver problemas de consumo.
+
+---
+
+<span id="inicializacao"></span>
+
+<h1 align="center">Como Inicializar o Projeto</h1>
+
+<p>
+
+Esta seção descreve como executar o <strong>backend</strong> do ProconBot Jacareí localmente. O frontend do painel administrativo encontra-se em <code>frontend/</code>, porém está <strong>mockado</strong> e não é necessário para rodar o chatbot no momento.
+
+</p>
+
+<h3>Pré-requisitos</h3>
+
+| Requisito | Versão / observação |
+|-----------|---------------------|
+| [Node.js](https://nodejs.org/) | 22.x (mesma versão usada no CI e no Docker) |
+| [npm](https://www.npmjs.com/) | Incluso com o Node.js |
+| MongoDB | Opcional — habilita histórico, sessões e índice RAG no banco |
+| Chave Gemini | Opcional — habilita busca semântica (RAG) e respostas com LLM |
+
+<h3>Estrutura relevante do backend</h3>
+
+```
+abp_6dsm/
+├── src/                 # Código TypeScript (bot, fluxos, RAG, WhatsApp)
+├── docs/knowledge/      # Base do CDC em markdown
+├── .env.example         # Modelo de variáveis de ambiente
+├── package.json         # Scripts npm do backend
+└── docker/Dockerfile    # Imagem para deploy (Node + Chromium)
+```
+
+<h3>Passo a passo</h3>
+
+**1. Clonar o repositório e instalar dependências**
+
+```bash
+git clone https://github.com/innocode-solutions/abp_6dsm.git
+cd abp_6dsm
+npm install
+```
+
+No Windows (PowerShell), se `npm` for bloqueado pela política de execução, use `npm.cmd` nos comandos abaixo (ex.: `npm.cmd install`, `npm.cmd run dev`).
+
+**2. Configurar variáveis de ambiente**
+
+Copie o arquivo de exemplo e ajuste os valores na raiz do projeto:
+
+```bash
+cp .env.example .env
+```
+
+No PowerShell: `Copy-Item .env.example .env`
+
+| Variável | Obrigatória | Descrição |
+|----------|:-----------:|-----------|
+| `MONGODB_URI` | Não | URI do MongoDB. Sem ela, o bot funciona com sessão em memória |
+| `MONGODB_DB_NAME` | Não | Nome do banco (padrão: extraído da URI) |
+| `GEMINI_API_KEY` | Não | Chave da [Google AI Studio](https://aistudio.google.com/apikey) para RAG + LLM |
+| `WHATSAPP_PHONE_NUMBER` | Não | Número em formato internacional para pareamento por código (ex.: `5511999999999`) |
+
+**3. (Opcional) Subir o MongoDB e validar a conexão**
+
+Com o MongoDB em execução (local, Docker ou Atlas), defina `MONGODB_URI` no `.env` e execute:
+
+```bash
+npm run db:ping
+```
+
+Se a conexão estiver correta, o terminal exibirá `Ping OK: conexão com MongoDB validada.`
+
+**4. (Opcional) Gerar o índice semântico do CDC**
+
+Necessário para **busca semântica** quando `GEMINI_API_KEY` estiver definida (o bot sobe sem esse passo, mas cai em busca por palavra-chave até o índice existir). O script lê `docs/knowledge/cdc.md`, gera embeddings e salva em `src/knowledge/cdc-index.json` (e no MongoDB, se `MONGODB_URI` estiver definida):
+
+```bash
+npm run rag:index
+```
+
+**5. Iniciar o servidor**
+
+Modo desenvolvimento (TypeScript direto via `tsx`, sem build prévio):
+
+```bash
+npm run dev
+```
+
+Modo produção local:
+
+```bash
+npm run build
+npm start
+```
+
+**6. Autenticar o WhatsApp**
+
+Na primeira execução, o `whatsapp-web.js` solicita login. Acompanhe o terminal:
+
+- **QR Code** — exibido no console; escaneie em *WhatsApp → Dispositivos conectados → Conectar um dispositivo*.
+- **Código de pareamento** — defina `WHATSAPP_PHONE_NUMBER` no `.env`; o código de 8 caracteres aparecerá no log. No celular, use *Conectar com número de telefone*.
+
+Após autenticado, a sessão fica em `.wwebjs_auth/` (ou no caminho definido em `WHATSAPP_AUTH_PATH`). Nas próximas execuções, o login costuma ser reutilizado automaticamente.
+
+Quando tudo estiver certo, você verá mensagens como `[WhatsApp] Conectado e pronto para uso.` e `Servidor iniciado com arquitetura de provedores e persistência.`
+
+<h3>Scripts úteis do backend</h3>
+
+| Comando | Descrição |
+|---------|-----------|
+| `npm run dev` | Sobe o bot em modo desenvolvimento |
+| `npm run build` | Compila TypeScript para `dist/` |
+| `npm start` | Executa a versão compilada |
+| `npm test` / `npm run test:run` | Executa testes com Vitest |
+| `npm run typecheck` | Verifica tipos sem gerar build |
+| `npm run db:ping` | Testa conexão com o MongoDB |
+| `npm run db:inspect` | Inspeciona coleções do banco |
+| `npm run db:seed-sample` | Insere dados de exemplo |
+| `npm run rag:index` | Gera/atualiza índice vetorial do CDC |
+
+<h3>Execução com Docker (opcional)</h3>
+
+Para ambiente containerizado (inclui Chromium para o WhatsApp):
+
+```bash
+docker build -f docker/Dockerfile -t proconbot-jacarei .
+docker run --env-file .env proconbot-jacarei
+```
+
+Em produção, o deploy utiliza [Railway](https://railway.app/) com as variáveis descritas em `.env.example` e em `RELEASE.md`.
+
+<h3>Comportamento sem dependências opcionais</h3>
+
+- Sem `MONGODB_URI`: fluxos e conversas funcionam com **sessão em memória**; histórico não é persistido.
+- Sem `GEMINI_API_KEY`: o sistema usa **busca por palavra-chave** no CDC, sem LLM nem embeddings.
+- Com `GEMINI_API_KEY` mas sem índice (`npm run rag:index` ou dados no MongoDB): o LLM pode responder, porém a busca no CDC permanece por **palavra-chave** até o índice ser gerado.
 
 ---
 
