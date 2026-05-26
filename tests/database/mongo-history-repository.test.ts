@@ -38,7 +38,25 @@ describe("MongoHistoryRepository", () => {
     });
   });
 
-  it("deve recuperar mensagens de um usuário ordenadas por criação", async () => {
+  it("deve salvar um marcador quando a mensagem nao tiver texto", async () => {
+    const message = {
+      from: "user-123",
+      body: "",
+      direction: "in" as const,
+      timestamp: "2024-01-01T10:00:00Z"
+    };
+
+    await repository.save(message);
+
+    expect(ChatMessageModel.create).toHaveBeenCalledWith({
+      from: "user-123",
+      direction: "in",
+      body: "[mensagem sem texto]",
+      clientTimestamp: "2024-01-01T10:00:00Z"
+    });
+  });
+
+  it("deve recuperar mensagens de um usuario ordenadas por criacao", async () => {
     const mockData = [
       { from: "user-1", body: "A", direction: "in", clientTimestamp: "T1" },
       { from: "user-1", body: "B", direction: "out", clientTimestamp: "T2" }
