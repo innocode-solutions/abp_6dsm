@@ -211,6 +211,28 @@ describe("WhatsAppProvider", () => {
     }));
   });
 
+  it("deve ignorar mensagem duplicada pelo mesmo id", async () => {
+    const provider = new WhatsAppProvider();
+    const handler = vi.fn();
+    provider.onMessage(handler);
+
+    const messageCall = onMock.mock.calls.find(call => call[0] === "message");
+    const messageCallback = messageCall![1];
+
+    const mockMessage = {
+      id: { _serialized: "msg-duplicada-1" },
+      fromMe: false,
+      from: "5511999999999@c.us",
+      body: "oi",
+      reply: vi.fn()
+    };
+
+    await messageCallback(mockMessage);
+    await messageCallback(mockMessage);
+
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
   it("deve ignorar mensagens de status ou grupos", async () => {
     const provider = new WhatsAppProvider();
     const handler = vi.fn();

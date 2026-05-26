@@ -6,11 +6,13 @@ import { IncomingMessage, MessagingProvider } from "../types/messaging";
 
 export class WhatsAppProvider implements MessagingProvider {
   private static readonly QR_RENDER_COOLDOWN_MS = 180000; // 3 minutos;;
+  private static readonly MESSAGE_DEDUP_TTL_MS = 10 * 60 * 1000;
   private static readonly DEFAULT_USER_AGENT =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36";
 
   private client: Client;
   private onMessageHandler: ((message: IncomingMessage) => Promise<void>) | null = null;
+  private readonly recentMessageIds = new Map<string, number>();
   private readonly pairingPhoneNumber: string | null;
   private readonly authPath: string;
   private readonly authClientId: string;
@@ -219,6 +221,7 @@ export class WhatsAppProvider implements MessagingProvider {
 
     this.client.on("message", async (message: Message) => {
       if (this.shouldIgnore(message)) return;
+      if (this.wasRecentlyHandled(message)) return;
 
       if (this.onMessageHandler) {
         await this.onMessageHandler({
@@ -239,6 +242,44 @@ export class WhatsAppProvider implements MessagingProvider {
       message.from === "status@broadcast" || 
       message.from.endsWith("@g.us")
     );
+  }
+
+  private wasRecentlyHandled(message: Message): boolean {
+    const messageId = this.getMessageId(message);
+
+    if (!messageId) {
+      return false;
+    }
+
+    const now = Date.now();
+    this.pruneRecentMessageIds(now);
+
+    if (this.recentMessageIds.has(messageId)) {
+      console.warn(`[WhatsApp] Mensagem duplicada ignorada: ${messageId}`);
+      return true;
+    }
+
+    this.recentMessageIds.set(messageId, now);
+    return false;
+  }
+
+  private getMessageId(message: Message): string | null {
+    const messageWithId = message as Message & {
+      id?: {
+        _serialized?: string;
+        id?: string;
+      };
+    };
+
+    return messageWithId.id?._serialized || messageWithId.id?.id || null;
+  }
+
+  private pruneRecentMessageIds(now: number): void {
+    for (const [messageId, handledAt] of this.recentMessageIds.entries()) {
+      if (now - handledAt > WhatsAppProvider.MESSAGE_DEDUP_TTL_MS) {
+        this.recentMessageIds.delete(messageId);
+      }
+    }
   }
 
   private shouldRenderQrNow(): boolean {
