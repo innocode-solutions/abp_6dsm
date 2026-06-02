@@ -15,7 +15,10 @@ const USER_ID_REGEX = /^[a-zA-Z0-9+@,_\-]+$/;
 const USER_ITEM_REGEX = /^[a-zA-Z0-9+@_\-]{1,50}$/;
 
 export const usersParamSchema = z
-  .string({ error: "Parâmetro 'users' é obrigatório e deve ser uma string." })
+  .string({
+    required_error: "Parâmetro 'users' é obrigatório e deve ser uma string.",
+    invalid_type_error: "Parâmetro 'users' é obrigatório e deve ser uma string.",
+  })
   .max(200, "Parâmetro 'users' excede o tamanho máximo de 200 caracteres.")
   .regex(USER_ID_REGEX, "Parâmetro 'users' contém caracteres inválidos.");
 
