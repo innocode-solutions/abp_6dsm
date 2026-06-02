@@ -1,6 +1,6 @@
 # ProconBot Jacareí — Node + Chromium para whatsapp-web.js (Puppeteer)
 # Build a partir da raiz do repositório:
-#   docker build -f docker/Dockerfile .
+#   docker build -f z/Dockerfile .
 
 # -----------------------------------------------------------------------------
 # Etapa 1: compila TypeScript (inclui devDependencies: typescript, etc.)

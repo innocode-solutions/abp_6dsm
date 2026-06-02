@@ -1,6 +1,7 @@
 import "dotenv/config";
 
 import { ProconBot } from "./bot/bot";
+import { createHttpServer } from "./api/server-http";
 import { connectMongo, isMongoConfigured } from "./database/connection";
 import { MongoEntityExtractionRepository } from "./database/repositories/mongo-entity-extraction-repository";
 import { MongoHistoryRepository } from "./database/repositories/mongo-history-repository";
@@ -116,6 +117,17 @@ export async function bootstrap(): Promise<void> {
     );
 
     await bot.start();
+
+    // Servidor HTTP (ERP / dashboard de KPIs) — separado do bot WhatsApp
+    if (historyRepository) {
+      const httpApp = createHttpServer(historyRepository);
+      const httpPort = Number(process.env.HTTP_PORT ?? 3000);
+      httpApp.listen(httpPort, () => {
+        console.log(`[API] Servidor HTTP iniciado na porta ${httpPort}.`);
+      });
+    } else {
+      console.warn("[API] Servidor HTTP desabilitado: MongoDB não configurado (historyRepository ausente).");
+    }
 
     console.log(
       "Servidor iniciado com arquitetura de provedores e persistência."

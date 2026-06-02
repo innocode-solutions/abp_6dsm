@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync } from "node:fs";
-import { basename } from "node:path";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, join } from "node:path";
 import { WhatsappSessionModel } from "../database/models/whatsapp-session.model";
 
 /**
@@ -20,8 +20,8 @@ export class MongoWhatsappStore {
    * (ex: "/app/.wwebjs_auth/RemoteAuth-proconbot-jacarei")
    */
   async save(options: { session: string }): Promise<void> {
-    const zipPath = `${options.session}.zip`;
     const sessionName = basename(options.session); // normaliza para só o nome
+    const zipPath = this.resolveZipPath(options.session, sessionName);
 
     let data: Buffer;
     try {
@@ -78,5 +78,14 @@ export class MongoWhatsappStore {
   async delete(options: { session: string }): Promise<void> {
     await WhatsappSessionModel.deleteOne({ session: options.session });
     console.log(`[WhatsappStore] Sessão "${options.session}" removida do MongoDB.`);
+  }
+
+  private resolveZipPath(session: string, sessionName: string): string {
+    const authPath = process.env.WHATSAPP_AUTH_PATH?.trim() || ".wwebjs_auth";
+    const candidates = Array.from(
+      new Set([`${session}.zip`, join(authPath, `${sessionName}.zip`)])
+    );
+
+    return candidates.find((candidate) => existsSync(candidate)) ?? candidates[0];
   }
 }
