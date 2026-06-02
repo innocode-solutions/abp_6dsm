@@ -1,5 +1,10 @@
 import "dotenv/config";
 
+import {
+  AgendamentoApiClient,
+  AgendamentoConversationService,
+  InMemoryAgendamentoSessionStore
+} from "./agendamento";
 import { ProconBot } from "./bot/bot";
 import { createHttpServer } from "./api/server-http";
 import { connectMongo, isMongoConfigured } from "./database/connection";
@@ -23,6 +28,7 @@ import { ISessionStore } from "./sessions/session-store.interface";
 import { WhatsAppProvider } from "./whatsapp/whatsapp-provider";
 
 import type { IEntityExtractionRepository } from "./extraction/entity-extraction-repository.interface";
+import type { AgendamentoConversationHandler } from "./agendamento";
 import type { IHistoryRepository } from "./messages/history";
 
 function logFatalError(origin: string, error: unknown): void {
@@ -47,6 +53,21 @@ process.on("uncaughtException", (error) => {
   logFatalError("Excecao nao capturada", error);
   process.exit(1);
 });
+
+function createAgendamentoConversation(): AgendamentoConversationHandler | undefined {
+  const baseUrl = process.env.AGENDAMENTO_API_BASE_URL?.trim();
+  const apiKey = process.env.CHATBOT_API_KEY?.trim();
+
+  if (!baseUrl || !apiKey) {
+    return undefined;
+  }
+
+  const apiClient = new AgendamentoApiClient({ baseUrl, apiKey });
+  return new AgendamentoConversationService(
+    apiClient,
+    new InMemoryAgendamentoSessionStore()
+  );
+}
 
 export async function bootstrap(): Promise<void> {
   try {
@@ -106,7 +127,8 @@ export async function bootstrap(): Promise<void> {
       flowMatcher,
       sessionStore,
       knowledgeService,
-      entityRepository
+      entityRepository,
+      createAgendamentoConversation()
     );
 
     const bot = new ProconBot(
