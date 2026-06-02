@@ -1,32 +1,63 @@
-import { Request, Response, NextFunction } from "express";
+import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 
-export interface AuthenticatedRequest extends Request {
-  user?: jwt.JwtPayload | string;
+import { env } from "../config/env.js";
+import { AppError } from "../types/common.types.js";
+import type { PerfilUsuario } from "../types/common.types.js";
+
+interface AdminTokenPayload {
+  id: string;
+  perfil: PerfilUsuario;
 }
 
-export function authMiddleware(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-): void {
-  const token = req.headers.authorization?.split(" ")[1];
+function isPerfilUsuario(value: unknown): value is PerfilUsuario {
+  return value === "admin" || value === "atendente";
+}
 
-  if (!token) {
-    res.status(401).json({ error: "Acesso negado: token não fornecido." });
+function isAdminTokenPayload(value: unknown): value is AdminTokenPayload {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const payload = value as Record<string, unknown>;
+  return typeof payload.id === "string" && isPerfilUsuario(payload.perfil);
+}
+
+export function authenticateChatbot(req: Request, _res: Response, next: NextFunction): void {
+  const apiKey = req.header("x-api-key");
+  if (!apiKey || apiKey !== env.CHATBOT_API_KEY) {
+    next(new AppError("NAO_AUTENTICADO", 401));
+    return;
+  }
+  next();
+}
+
+export function authenticateAdmin(req: Request, _res: Response, next: NextFunction): void {
+  const authorization = req.header("authorization");
+  if (!authorization?.startsWith("Bearer ")) {
+    next(new AppError("NAO_AUTENTICADO", 401));
     return;
   }
 
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    res.status(500).json({ error: "JWT_SECRET não configurado no servidor." });
+  const token = authorization.slice("Bearer ".length).trim();
+  if (!token) {
+    next(new AppError("NAO_AUTENTICADO", 401));
     return;
   }
 
   try {
-    req.user = jwt.verify(token, secret);
+    const decoded = jwt.verify(token, env.JWT_SECRET);
+    if (!isAdminTokenPayload(decoded)) {
+      next(new AppError("NAO_AUTENTICADO", 401));
+      return;
+    }
+
+    req.usuario = {
+      id: decoded.id,
+      perfil: decoded.perfil,
+      tipo: "admin",
+    };
     next();
   } catch {
-    res.status(401).json({ error: "Token inválido ou expirado." });
+    next(new AppError("NAO_AUTENTICADO", 401));
   }
 }

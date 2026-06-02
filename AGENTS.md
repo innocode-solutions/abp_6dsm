@@ -32,7 +32,7 @@ Run these from the repository root:
 - `npm.cmd run test:run`: runs the full test suite once
 - `npm.cmd run test`: runs Vitest in watch mode
 - `npm.cmd run typecheck`: runs TypeScript without emitting files
-- `npm.cmd run build`: compiles TypeScript to `dist/`
+- `npm.cmd run build`: compiles the chatbot to `dist/src/...` and the REST API to `dist/api/...`; use `build:bot` or `build:api` for a single target
 
 On Windows PowerShell, prefer `npm.cmd` instead of `npm` if execution policy blocks PowerShell scripts.
 

@@ -1,0 +1,1 @@
+export const HORAS_MINIMAS_ANTECEDENCIA = 2;

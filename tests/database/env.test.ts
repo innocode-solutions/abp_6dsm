@@ -21,6 +21,7 @@ describe("getMongoEnv", () => {
 
   it("deve aceitar MONGO_URL como fallback compatível com Railway", () => {
     delete process.env.MONGODB_URI;
+    delete process.env.MONGO_URI;
     process.env.MONGO_URL = "mongodb://railway-internal";
 
     expect(getMongoEnv()).toEqual({
@@ -32,6 +33,7 @@ describe("getMongoEnv", () => {
   it("deve aceitar Mongo_URL quando esse alias estiver disponível", () => {
     delete process.env.MONGODB_URI;
     delete process.env.MONGO_URL;
+    delete process.env.MONGO_URI;
     process.env.Mongo_URL = "mongodb://mixed-case";
 
     expect(getMongoEnv()).toEqual({
