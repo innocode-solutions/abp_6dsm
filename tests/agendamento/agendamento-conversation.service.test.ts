@@ -9,6 +9,14 @@ function makeApi(): AgendamentoApi {
       {
         _id: "servico-1",
         nome: "Atendimento presencial"
+      },
+      {
+        _id: "servico-2",
+        nome: "Cobranca indevida"
+      },
+      {
+        _id: "servico-3",
+        nome: "Produto com defeito ou garantia"
       }
     ]),
     listarHorariosDisponiveis: vi.fn().mockResolvedValue([
@@ -18,6 +26,22 @@ function makeApi(): AgendamentoApi {
         exibicao: {
           data: "03/06/2026",
           hora: "09:00"
+        }
+      },
+      {
+        _id: "horario-duplicado",
+        servico_id: "servico-1",
+        exibicao: {
+          data: "03/06/2026",
+          hora: "09:00"
+        }
+      },
+      {
+        _id: "horario-2",
+        servico_id: "servico-1",
+        exibicao: {
+          data: "03/06/2026",
+          hora: "10:00"
         }
       }
     ]),
@@ -59,14 +83,19 @@ describe("AgendamentoConversationService", () => {
     const userId = "5511999999999@c.us";
 
     const inicio = await service.handle(userId, "quero agendar atendimento");
-    expect(inicio).toContain("Atendimento presencial");
-    expect(inicio).toContain("Digite o numero do servico");
+    expect(inicio).toContain("Deseja marcar atendimento presencial para o PROCON?");
+    expect(inicio).toContain("1. Sim");
+    expect(inicio).toContain("2. Nao");
+    expect(inicio).not.toContain("Cobranca indevida");
+    expect(inicio).not.toContain("Produto com defeito");
 
     const horarios = await service.handle(userId, "1");
     expect(horarios).toContain("03/06/2026 as 09:00");
+    expect(horarios).toContain("2. 03/06/2026 as 10:00");
+    expect(horarios).not.toContain("2. 03/06/2026 as 09:00");
     expect(api.listarHorariosDisponiveis).toHaveBeenCalledWith({
       servico_id: "servico-1",
-      limite: 5
+      limite: 10
     });
 
     const nome = await service.handle(userId, "1");
@@ -91,6 +120,7 @@ describe("AgendamentoConversationService", () => {
 
     expect(confirmado).toContain("Agendamento confirmado");
     expect(confirmado).toContain("AGD-2026-000001");
+    expect(confirmado).toContain("Obrigado por usar o ProconBot Jacarei");
     expect(api.confirmarAgendamento).toHaveBeenCalledWith({
       horario_id: "horario-1",
       pre_reserva_id: "pre-1",
@@ -109,6 +139,30 @@ describe("AgendamentoConversationService", () => {
 
     await expect(service.handle("user-menu", "menu")).resolves.toBeNull();
     await expect(service.handle("user-menu", "1")).resolves.toBeNull();
+  });
+
+  it("inicia agendamento pela opcao numerica oferecida apos resposta RAG", async () => {
+    const userId = "user-rag-offer";
+
+    await expect(service.offerScheduling(userId)).resolves.toContain(
+      "Deseja marcar atendimento presencial para o PROCON?"
+    );
+
+    const horarios = await service.handle(userId, "1");
+
+    expect(horarios).toContain("Horarios disponiveis");
+    expect(horarios).toContain("03/06/2026 as 09:00");
+    expect(api.listarServicos).toHaveBeenCalledOnce();
+  });
+
+  it("retorna ao menu quando usuario recusa agendamento presencial", async () => {
+    const userId = "user-rag-menu";
+
+    await service.offerScheduling(userId);
+    const response = await service.handle(userId, "2");
+
+    expect(response).toContain("ProconBot");
+    expect(response).toContain("1.");
   });
 
   it("traduz erro de agendamento duplicado em mensagem amigavel", async () => {

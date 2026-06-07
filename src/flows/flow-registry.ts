@@ -25,8 +25,8 @@ export function getFlowsAsMenu(flows: FlowDefinition[]): {
 } {
   const flowMap: Record<string, FlowDefinition> = {};
   const menuLines: string[] = [
-    "Olá! Sou o ProconBot Jacareí.",
-    "No momento, posso te orientar sobre:",
+    "Ola! Eu sou o ProconBot Jacarei, assistente virtual do PROCON.",
+    "Vou te ajudar com uma orientacao inicial. Escolha uma das opcoes abaixo:",
     ""
   ];
 
@@ -37,7 +37,7 @@ export function getFlowsAsMenu(flows: FlowDefinition[]): {
   });
 
   menuLines.push("");
-  menuLines.push('Digite o número da opção desejada ou "menu" para voltar a este menu.');
+  menuLines.push('Digite o numero da opcao desejada ou "menu" para voltar a este menu.');
 
   return {
     menu: menuLines.join("\n"),

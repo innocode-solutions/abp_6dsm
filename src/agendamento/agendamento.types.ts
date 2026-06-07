@@ -97,6 +97,8 @@ export interface AgendamentoApi {
 }
 
 export type EtapaAgendamento =
+  | "oferta_agendamento"
+  | "confirmar_agendamento_presencial"
   | "escolher_servico"
   | "escolher_horario"
   | "informar_nome"
@@ -127,4 +129,5 @@ export interface AgendamentoConversationHandler {
     body: string,
     options?: AgendamentoConversationOptions
   ): Promise<string | null>;
+  offerScheduling?(userId: string): Promise<string | null>;
 }

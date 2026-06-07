@@ -127,7 +127,7 @@ export class MessageProcessorService implements IMessageProcessor {
 
       await this.sessionStore.clear(from);
       return {
-        text: this.formatCompletedResponse(result.response),
+        text: await this.formatCompletedResponse(from, result.response),
         nlpClassification: null,
         flowIdActive: undefined
       };
@@ -197,8 +197,11 @@ export class MessageProcessorService implements IMessageProcessor {
     const knowledgeAnswer = await this.knowledgeService?.findAnswer(body);
 
     if (knowledgeAnswer) {
+      const schedulingOffer =
+        (await this.agendamentoConversation?.offerScheduling?.(from)) ?? "";
+
       return {
-        text: knowledgeAnswer + MENU_REMINDER,
+        text: knowledgeAnswer + schedulingOffer + MENU_REMINDER,
         nlpClassification,
         flowIdActive: undefined
       };
@@ -258,7 +261,10 @@ export class MessageProcessorService implements IMessageProcessor {
     return `${question}\n\n${formattedOptions}${MENU_REMINDER}`;
   }
 
-  private formatCompletedResponse(response: FlowResponse): string {
+  private async formatCompletedResponse(
+    userId: string,
+    response: FlowResponse
+  ): Promise<string> {
     let text = `${response.summary}\n\n${response.message}`;
 
     if (response.recommendations?.length) {
@@ -273,6 +279,9 @@ export class MessageProcessorService implements IMessageProcessor {
       text += `\n\n${response.disclaimer}`;
     }
 
-    return text + MENU_REMINDER;
+    const schedulingOffer =
+      (await this.agendamentoConversation?.offerScheduling?.(userId)) ?? "";
+
+    return text + schedulingOffer + MENU_REMINDER;
   }
 }

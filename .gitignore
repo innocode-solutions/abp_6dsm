@@ -1,6 +1,13 @@
 node_modules
 dist
 .env
+.env.*
+!.env.example
 .wwebjs_auth
 .wwebjs_cache
 model.nlp
+
+# Local database/test utilities with disposable credentials or environment-specific data.
+scripts/seed-test-db.ts
+scripts/check-test-db-collections.ts
+api-dev.*.log

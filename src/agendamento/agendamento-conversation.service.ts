@@ -1,4 +1,5 @@
 import { AgendamentoApiError } from "./agendamento-api-client";
+import { flowRegistry, getFlowsAsMenu } from "../flows/flow-registry";
 import {
   InMemoryAgendamentoSessionStore,
   type IAgendamentoSessionStore
@@ -23,7 +24,14 @@ const TRIGGERS_AGENDAMENTO = [
 ];
 
 const MINUTOS_PRE_RESERVA = 15;
-const LIMITE_HORARIOS = 5;
+const LIMITE_HORARIOS = 10;
+const PERGUNTA_AGENDAMENTO_PRESENCIAL = [
+  "Deseja marcar atendimento presencial para o PROCON?",
+  "",
+  "1. Sim",
+  "2. Nao, voltar ao menu"
+].join("\n");
+const OPCAO_AGENDAMENTO_PRESENCIAL = `\n\n${PERGUNTA_AGENDAMENTO_PRESENCIAL}`;
 
 export class AgendamentoConversationService implements AgendamentoConversationHandler {
   constructor(
@@ -55,21 +63,40 @@ export class AgendamentoConversationService implements AgendamentoConversationHa
     return this.startSession(userId);
   }
 
+  async offerScheduling(userId: string): Promise<string | null> {
+    const session = await this.sessionStore.get(userId);
+
+    if (session) {
+      return null;
+    }
+
+    await this.sessionStore.save({
+      userId,
+      etapa: "oferta_agendamento"
+    });
+
+    return OPCAO_AGENDAMENTO_PRESENCIAL;
+  }
+
   private async startSession(userId: string): Promise<string> {
     try {
-      const servicos = await this.api.listarServicos();
+      const servicos = this.filterServicosPresenciais(await this.api.listarServicos());
 
       if (servicos.length === 0) {
-        return "No momento nao encontrei servicos disponiveis para agendamento.";
+        return "No momento nao encontrei atendimento presencial disponivel para agendamento.";
       }
 
       await this.sessionStore.save({
         userId,
-        etapa: "escolher_servico",
+        etapa: "confirmar_agendamento_presencial",
         servicos
       });
 
-      return this.formatServicos(servicos);
+      return [
+        "Encontrei estes servicos para agendamento.",
+        "",
+        PERGUNTA_AGENDAMENTO_PRESENCIAL
+      ].join("\n");
     } catch {
       await this.sessionStore.clear(userId);
       return "Nao consegui acessar a agenda agora. Tente novamente em alguns instantes.";
@@ -79,8 +106,12 @@ export class AgendamentoConversationService implements AgendamentoConversationHa
   private async continueSession(
     session: AgendamentoConversationSession,
     body: string
-  ): Promise<string> {
+  ): Promise<string | null> {
     switch (session.etapa) {
+      case "oferta_agendamento":
+        return this.responderOfertaAgendamento(session, body);
+      case "confirmar_agendamento_presencial":
+        return this.confirmarAgendamentoPresencial(session, body);
       case "escolher_servico":
         return this.escolherServico(session, body);
       case "escolher_horario":
@@ -113,10 +144,10 @@ export class AgendamentoConversationService implements AgendamentoConversationHa
     }
 
     try {
-      const horarios = await this.api.listarHorariosDisponiveis({
+      const horarios = this.uniqueHorariosBySlot(await this.api.listarHorariosDisponiveis({
         servico_id: servico._id,
         limite: LIMITE_HORARIOS
-      });
+      }));
 
       if (horarios.length === 0) {
         await this.sessionStore.clear(session.userId);
@@ -134,6 +165,70 @@ export class AgendamentoConversationService implements AgendamentoConversationHa
     } catch {
       await this.sessionStore.clear(session.userId);
       return "Nao consegui consultar os horarios agora. Tente novamente em alguns instantes.";
+    }
+  }
+
+  private async responderOfertaAgendamento(
+    session: AgendamentoConversationSession,
+    body: string
+  ): Promise<string | null> {
+    const text = body.trim();
+
+    if (text === "1") {
+      return this.startConfirmedSession(session.userId);
+    }
+
+    if (text === "2") {
+      await this.sessionStore.clear(session.userId);
+      return getFlowsAsMenu(flowRegistry).menu;
+    }
+
+    if (!/^\d+$/.test(text)) {
+      await this.sessionStore.clear(session.userId);
+      return null;
+    }
+
+    return `Opcao invalida.\n\n${PERGUNTA_AGENDAMENTO_PRESENCIAL}`;
+  }
+
+  private async confirmarAgendamentoPresencial(
+    session: AgendamentoConversationSession,
+    body: string
+  ): Promise<string> {
+    const text = body.trim();
+
+    if (text === "1") {
+      return this.escolherServico(session, "1");
+    }
+
+    if (text === "2") {
+      await this.sessionStore.clear(session.userId);
+      return getFlowsAsMenu(flowRegistry).menu;
+    }
+
+    return `Opcao invalida.\n\n${PERGUNTA_AGENDAMENTO_PRESENCIAL}`;
+  }
+
+  private async startConfirmedSession(userId: string): Promise<string> {
+    try {
+      const servicos = this.filterServicosPresenciais(await this.api.listarServicos());
+
+      if (servicos.length === 0) {
+        await this.sessionStore.clear(userId);
+        return "No momento nao encontrei atendimento presencial disponivel para agendamento.";
+      }
+
+      return this.escolherServico(
+        {
+          userId,
+          etapa: "confirmar_agendamento_presencial",
+          servicos
+        },
+        "1"
+      );
+    } catch {
+      await this.sessionStore.clear(userId);
+      return "Nao consegui acessar a agenda agora. Tente novamente em alguns instantes.";
     }
   }
 
@@ -258,7 +353,9 @@ export class AgendamentoConversationService implements AgendamentoConversationHa
         "Agendamento confirmado.",
         `Codigo: ${resultado.codigo_agendamento}`,
         "",
-        "Guarde esse codigo para consultar, cancelar ou remarcar seu atendimento."
+        "Guarde esse codigo para consultar, cancelar ou remarcar seu atendimento.",
+        "",
+        "Obrigado por usar o ProconBot Jacarei. Seu atendimento foi encerrado por aqui, mas sigo a disposicao. Se precisar de nova orientacao, envie menu."
       ].join("\n");
     } catch (error) {
       await this.sessionStore.clear(session.userId);
@@ -282,6 +379,48 @@ export class AgendamentoConversationService implements AgendamentoConversationHa
       .replace(/[\u0300-\u036f]/g, "");
   }
 
+  private filterServicosPresenciais(
+    servicos: AgendamentoServico[]
+  ): AgendamentoServico[] {
+    const presenciais = servicos.filter((servico) =>
+      this.normalize(`${servico.nome} ${servico.descricao ?? ""}`).includes(
+        "presencial"
+      )
+    );
+
+    return presenciais.length > 0 ? presenciais : servicos.slice(0, 1);
+  }
+
+  private uniqueHorariosBySlot(horarios: AgendamentoHorario[]): AgendamentoHorario[] {
+    const seen = new Set<string>();
+    const unique: AgendamentoHorario[] = [];
+
+    for (const horario of horarios) {
+      const key = this.getHorarioSlotKey(horario);
+
+      if (seen.has(key)) {
+        continue;
+      }
+
+      seen.add(key);
+      unique.push(horario);
+    }
+
+    return unique;
+  }
+
+  private getHorarioSlotKey(horario: AgendamentoHorario): string {
+    if (horario.exibicao) {
+      return `${horario.exibicao.data}-${horario.exibicao.hora}`;
+    }
+
+    if (horario.inicio_em) {
+      return new Date(horario.inicio_em).toISOString();
+    }
+
+    return horario._id;
+  }
+
   private pickOption<T>(items: T[], body: string): T | null {
     const index = Number.parseInt(body.trim(), 10);
 
@@ -290,16 +429,6 @@ export class AgendamentoConversationService implements AgendamentoConversationHa
     }
 
     return items[index - 1];
-  }
-
-  private formatServicos(servicos: AgendamentoServico[]): string {
-    return [
-      "Encontrei estes servicos para agendamento:",
-      "",
-      this.formatOptions(servicos, (servico) => servico.nome),
-      "",
-      "Digite o numero do servico desejado."
-    ].join("\n");
   }
 
   private formatHorarios(horarios: AgendamentoHorario[]): string {

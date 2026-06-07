@@ -85,7 +85,7 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
         
         // Deve conter uma pergunta (não o menu)
         expect(response.length).toBeGreaterThan(0);
-        expect(response).not.toContain("Olá! Sou o ProconBot Jacareí");
+        expect(response).not.toContain("assistente virtual do PROCON");
       }
     });
   });
@@ -95,7 +95,7 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
       const response = await processor.processIncomingMessage("user4", "10");
 
       expect(response).toContain("Essa opção não existe");
-      expect(response).toContain("Olá! Sou o ProconBot Jacareí");
+      expect(response).toContain("assistente virtual do PROCON");
       expect(response).toContain("1.");
       expect(response).toContain("5.");
     });
@@ -104,7 +104,7 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
       const response = await processor.processIncomingMessage("user5", "99");
 
       expect(response).toContain("Essa opção não existe");
-      expect(response).toContain("Olá! Sou o ProconBot Jacareí");
+      expect(response).toContain("assistente virtual do PROCON");
     });
   });
 
@@ -118,7 +118,7 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
 
       // Digitar "menu" para voltar
       response = await processor.processIncomingMessage(user, "menu");
-      expect(response).toContain("Olá! Sou o ProconBot Jacareí");
+      expect(response).toContain("assistente virtual do PROCON");
       expect(response).toContain("1.");
     });
 
@@ -127,11 +127,11 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
 
       // Iniciar fluxo
       let response = await processor.processIncomingMessage(user, "2");
-      expect(response).not.toContain("Olá! Sou o ProconBot Jacareí");
+      expect(response).not.toContain("assistente virtual do PROCON");
 
       // Digitar "0" para voltar
       response = await processor.processIncomingMessage(user, "0");
-      expect(response).toContain("Olá! Sou o ProconBot Jacareí");
+      expect(response).toContain("assistente virtual do PROCON");
       expect(response).toContain("1.");
     });
   });
@@ -179,7 +179,7 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
 
       // Iniciar fluxo
       let response = await processor.processIncomingMessage(user, "1");
-      expect(response).not.toContain("Olá! Sou o ProconBot Jacareí");
+      expect(response).not.toContain("assistente virtual do PROCON");
 
       // Tentar voltar com diferentes capitalizações
       const testCases = ["MENU", "Menu", "MeNu"];
@@ -192,7 +192,7 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
         
         // Tentar voltar
         response = await processor.processIncomingMessage(user_variant, testCase);
-        expect(response).toContain("Olá! Sou o ProconBot Jacareí");
+        expect(response).toContain("assistente virtual do PROCON");
       }
     });
   });
@@ -230,20 +230,59 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
       // Toda resposta RAG deve ter o lembrete do menu
       expect(response).toContain("menu");
     });
+
+    it("deve oferecer agendamento presencial como opcao apos resposta da base", async () => {
+      const fm = new FlowMatcher(flowRegistry);
+      await fm.initialize();
+      const processorWithKnowledgeAndScheduling = new MessageProcessorService(
+        new FlowEngine(),
+        fm,
+        new InMemorySessionStore(),
+        new KnowledgeService({
+          search: async () => [
+            {
+              score: 2,
+              entry: {
+                id: "cdc-42",
+                title: "Art. 42 - Cobranca indevida",
+                body: "Resposta juridica de teste."
+              }
+            }
+          ]
+        }),
+        undefined,
+        {
+          handle: async () => null,
+          offerScheduling: async () =>
+            "\n\nDeseja marcar atendimento presencial para o PROCON?\n\n1. Sim\n2. Nao, voltar ao menu"
+        }
+      );
+
+      const response = await processorWithKnowledgeAndScheduling.processIncomingMessage(
+        "user-cdc-agendamento",
+        "quais sao meus direitos do consumidor"
+      );
+
+      expect(response).toContain("Resposta juridica de teste");
+      expect(response).toContain("Deseja marcar atendimento presencial para o PROCON?");
+      expect(response).toContain("1. Sim");
+      expect(response).toContain("2. Nao");
+      expect(response).toContain("menu");
+    });
   });
 
   describe("Help Request - 'me ajuda' e similares", () => {
     it("deve mostrar o menu quando usuário digita 'me ajuda'", async () => {
       const response = await processor.processIncomingMessage("user-help1", "me ajuda");
 
-      expect(response).toContain("Olá! Sou o ProconBot Jacareí");
+      expect(response).toContain("assistente virtual do PROCON");
       expect(response).toContain("1.");
     });
 
     it("deve mostrar o menu quando usuário digita 'preciso de ajuda'", async () => {
       const response = await processor.processIncomingMessage("user-help2", "preciso de ajuda");
 
-      expect(response).toContain("Olá! Sou o ProconBot Jacareí");
+      expect(response).toContain("assistente virtual do PROCON");
     });
 
     it("deve mostrar o menu e encerrar sessão quando usuário pede ajuda durante um fluxo", async () => {
@@ -255,11 +294,11 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
 
       // Pedir ajuda genérica dentro do fluxo
       response = await processor.processIncomingMessage(user, "me ajuda");
-      expect(response).toContain("Olá! Sou o ProconBot Jacareí");
+      expect(response).toContain("assistente virtual do PROCON");
 
       // Sessão deve ter sido encerrada — próxima mensagem começa do zero
       response = await processor.processIncomingMessage(user, "menu");
-      expect(response).toContain("Olá! Sou o ProconBot Jacareí");
+      expect(response).toContain("assistente virtual do PROCON");
     });
 
     it("não deve interceptar consulta jurídica longa com 'ajuda'", async () => {
@@ -271,7 +310,7 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
 
       // Não deve mostrar o menu direto (vai para RAG ou "não entendi")
       // O importante é não mostrar o menu de forma inesperada
-      expect(response).not.toContain("Olá! Sou o ProconBot Jacareí");
+      expect(response).not.toContain("assistente virtual do PROCON");
     });
   });
 
