@@ -27,30 +27,26 @@ import { MongoSessionStore } from "./sessions/mongo-session-store";
 import { ISessionStore } from "./sessions/session-store.interface";
 import { WhatsAppProvider } from "./whatsapp/whatsapp-provider";
 
+import { logger } from "./monitoring/logger";
 import type { IEntityExtractionRepository } from "./extraction/entity-extraction-repository.interface";
 import type { AgendamentoConversationHandler } from "./agendamento";
 import type { IHistoryRepository } from "./messages/history";
 
-function logFatalError(origin: string, error: unknown): void {
+function logBootstrapError(origin: string, error: unknown): void {
   if (error instanceof Error) {
-    console.error(`[Bootstrap] ${origin}: ${error.name}: ${error.message}`);
-
-    if (error.stack) {
-      console.error(error.stack);
-    }
-
+    logger.error(`[Bootstrap] ${origin}: ${error.name}: ${error.message}`, error);
     return;
   }
 
-  console.error(`[Bootstrap] ${origin}:`, error);
+  logger.error(`[Bootstrap] ${origin}: erro desconhecido`, { error });
 }
 
 process.on("unhandledRejection", (reason) => {
-  logFatalError("Promessa rejeitada sem tratamento", reason);
+  logBootstrapError("Promessa rejeitada sem tratamento", reason);
 });
 
 process.on("uncaughtException", (error) => {
-  logFatalError("Excecao nao capturada", error);
+  logBootstrapError("Exceção não capturada", error);
   process.exit(1);
 });
 
@@ -59,10 +55,21 @@ function createAgendamentoConversation(): AgendamentoConversationHandler | undef
   const apiKey = process.env.CHATBOT_API_KEY?.trim();
 
   if (!baseUrl || !apiKey) {
+    logger.warn("Agendamento desabilitado: variáveis de ambiente ausentes.", {
+      module: "AGENDAMENTO",
+      hasBaseUrl: Boolean(baseUrl),
+      hasApiKey: Boolean(apiKey)
+    });
+
     return undefined;
   }
 
   const apiClient = new AgendamentoApiClient({ baseUrl, apiKey });
+
+  logger.info("Agendamento habilitado.", {
+    module: "AGENDAMENTO"
+  });
+
   return new AgendamentoConversationService(
     apiClient,
     new InMemoryAgendamentoSessionStore()
@@ -76,22 +83,39 @@ export async function bootstrap(): Promise<void> {
     let conversationSessionIds: MongoConversationSessionIdService | undefined;
     let sessionStore: ISessionStore = new InMemorySessionStore();
 
+    logger.info("Iniciando bootstrap da aplicação.", {
+      module: "BOOTSTRAP",
+      nodeEnv: process.env.NODE_ENV
+    });
+
     if (process.env.NODE_ENV !== "test" && isMongoConfigured()) {
       try {
+        logger.info("Tentando conectar ao MongoDB.", {
+          module: "MONGODB"
+        });
+
         await connectMongo();
+
         historyRepository = new MongoHistoryRepository();
         entityRepository = new MongoEntityExtractionRepository();
         conversationSessionIds = new MongoConversationSessionIdService();
         sessionStore = new MongoSessionStore();
+
+        logger.info("MongoDB conectado com sucesso.", {
+          module: "MONGODB"
+        });
       } catch (error) {
-        console.warn(
-          "Falha ao conectar no MongoDB: persistência em MongoDB desabilitada. Usando sessão em memória."
+        logger.warn(
+          "Falha ao conectar no MongoDB: persistência em MongoDB desabilitada. Usando sessão em memória.",
+          { module: "MONGODB" }
         );
-        logFatalError("Conexao MongoDB", error);
+
+        logBootstrapError("Detalhes da falha de conexão MongoDB", error);
       }
     } else if (process.env.NODE_ENV !== "test" && !isMongoConfigured()) {
-      console.warn(
-        "MONGODB_URI não definido: persistência em MongoDB desabilitada. Defina a variável para ativar."
+      logger.warn(
+        "MONGODB_URI não definido: persistência em MongoDB desabilitada. Defina a variável para ativar.",
+        { module: "MONGODB" }
       );
     }
 
@@ -100,9 +124,13 @@ export async function bootstrap(): Promise<void> {
 
     const flowEngine = new FlowEngine();
     const flowMatcher = new FlowExtractionOrchestrator(flowRegistry);
+
     await flowMatcher.initialize();
 
-    // RAG: usa busca semântica + LLM se GEMINI_API_KEY estiver configurada
+    logger.info("Fluxos inicializados com sucesso.", {
+      module: "FLOW"
+    });
+
     const geminiApiKey = process.env.GEMINI_API_KEY;
     let knowledgeService: KnowledgeService;
 
@@ -111,16 +139,27 @@ export async function bootstrap(): Promise<void> {
       const llmService = new GeminiLlmService(geminiApiKey);
       const knowledgeRepository = new SemanticCdcRepository(embeddingService);
 
+      logger.info("Inicializando repositório semântico do RAG.", {
+        module: "RAG"
+      });
+
       await knowledgeRepository.initialize();
 
       knowledgeService = new KnowledgeService(knowledgeRepository, llmService);
-      console.log("[RAG] Busca semântica e geração com LLM ativadas.");
+
+      logger.info("Busca semântica e geração com LLM ativadas.", {
+        module: "RAG"
+      });
     } else {
-      console.warn(
-        "[RAG] GEMINI_API_KEY não definida: usando busca por keyword sem LLM."
+      logger.warn(
+        "GEMINI_API_KEY não definida: usando busca por keyword sem LLM.",
+        { module: "RAG" }
       );
+
       knowledgeService = new KnowledgeService(new MarkdownCdcRepository());
     }
+
+    const agendamentoConversation = createAgendamentoConversation();
 
     const processor = new MessageProcessorService(
       flowEngine,
@@ -128,7 +167,7 @@ export async function bootstrap(): Promise<void> {
       sessionStore,
       knowledgeService,
       entityRepository,
-      createAgendamentoConversation()
+      agendamentoConversation
     );
 
     const bot = new ProconBot(
@@ -140,22 +179,28 @@ export async function bootstrap(): Promise<void> {
 
     await bot.start();
 
-    // Servidor HTTP (ERP / dashboard de KPIs) — separado do bot WhatsApp
-    if (historyRepository) {
-      const httpApp = createHttpServer(historyRepository);
-      const httpPort = Number(process.env.HTTP_PORT ?? 3000);
+    logger.info("Bot WhatsApp iniciado com sucesso.", {
+      module: "BOT"
+    });
+
+    const httpApp = createHttpServer({ historyRepository });
+    const httpPort = Number(process.env.HTTP_PORT ?? 3000);
+
+    if (process.env.NODE_ENV !== "test") {
       httpApp.listen(httpPort, () => {
-        console.log(`[API] Servidor HTTP iniciado na porta ${httpPort}.`);
+        logger.info("Servidor HTTP iniciado.", {
+          module: "API",
+          port: httpPort,
+          kpiEnabled: Boolean(historyRepository)
+        });
       });
-    } else {
-      console.warn("[API] Servidor HTTP desabilitado: MongoDB não configurado (historyRepository ausente).");
     }
 
-    console.log(
-      "Servidor iniciado com arquitetura de provedores e persistência."
-    );
+    logger.info("Aplicação iniciada com arquitetura de provedores e persistência.", {
+      module: "BOOTSTRAP"
+    });
   } catch (error) {
-    console.error("Erro ao iniciar aplicação:", error);
+    logBootstrapError("Erro ao iniciar aplicação", error);
     process.exit(1);
   }
 }

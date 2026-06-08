@@ -1,14 +1,24 @@
 import type { NextFunction, Request, Response } from "express";
 
+import { logger } from "../../monitoring/logger";
 import { AppError } from "../types/common.types.js";
 import { buildMeta } from "../utils/responseHelper.js";
 
 export function errorHandler(
   err: unknown,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction,
 ): void {
+  logger.error("Erro na requisição", err, {
+    method: req.method,
+    path: req.originalUrl,
+  });
+
+  if (res.headersSent) {
+    return;
+  }
+
   if (err instanceof AppError) {
     res.status(err.httpStatus).json({
       erro: {
@@ -20,11 +30,12 @@ export function errorHandler(
     return;
   }
 
-  console.error(err);
-
   const body: {
-    erro: { codigo: string; mensagem: string };
-    meta: { requisicao_id: string; timestamp: string };
+    erro: {
+      codigo: string;
+      mensagem: string;
+    };
+    meta: ReturnType<typeof buildMeta>;
     stack?: string;
   } = {
     erro: {
@@ -34,7 +45,11 @@ export function errorHandler(
     meta: buildMeta(),
   };
 
-  if (process.env.NODE_ENV !== "production" && err instanceof Error && err.stack) {
+  if (
+    process.env.NODE_ENV !== "production" &&
+    err instanceof Error &&
+    err.stack
+  ) {
     body.stack = err.stack;
   }
 
