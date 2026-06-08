@@ -13,16 +13,14 @@ import {
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Calendar as CalIcon, Check, ChevronLeft, ChevronRight, ClipboardList, Clock, Plus, Search, X } from 'lucide-react'
-import {
-  agendamentosListaMock,
-  agendamentosMetricas,
-  diasComAgendamentoMaio2025,
-  type StatusAgendamento,
-} from '../data/mockData'
+import { useAuth } from '../hooks/useAuth'
+import { api } from '../services/api'
 import { useMainLayoutOutlet } from '../hooks/useMainLayoutOutlet'
 
-const initialMonth = new Date(2025, 4, 1)
-const initialSelected = new Date(2025, 4, 24)
+type StatusAgendamento = 'Confirmado' | 'Pendente' | 'Cancelado'
+
+const initialMonth = new Date()
+const initialSelected = new Date()
 
 function statusRowClass(s: StatusAgendamento) {
   if (s === 'Confirmado') return 'bg-sky-50 text-sky-900'
@@ -36,12 +34,44 @@ function statusDot(s: StatusAgendamento) {
   return 'bg-[#CC2229]'
 }
 
+function mapStatus(status: string): StatusAgendamento {
+  const s = String(status).toLowerCase()
+  if (['confirmado', 'check_in_realizado', 'em_atendimento', 'concluido'].includes(s)) {
+    return 'Confirmado'
+  }
+  if (s === 'pendente') {
+    return 'Pendente'
+  }
+  return 'Cancelado'
+}
+
+function formatTime(inicio: string, fim: string): string {
+  const dStart = new Date(inicio)
+  const dEnd = new Date(fim)
+  const pad = (num: number) => String(num).padStart(2, '0')
+  return `${pad(dStart.getHours())}:${pad(dStart.getMinutes())} - ${pad(dEnd.getHours())}:${pad(dEnd.getMinutes())}`
+}
+
+function maskCPF(cpf: string): string {
+  if (!cpf) return '***.***.***-**'
+  const clean = cpf.replace(/\D/g, '')
+  if (clean.length === 11) {
+    return `***.***.${clean.substring(6, 9)}-**`
+  }
+  return '***.***.***-**'
+}
+
 export function AgendamentosPage() {
+  const { token } = useAuth()
   const { setHeaderExtra } = useMainLayoutOutlet()
   const [month, setMonth] = useState(initialMonth)
   const [selected, setSelected] = useState(initialSelected)
   const [quick, setQuick] = useState<'Todos' | StatusAgendamento>('Todos')
   const [q, setQ] = useState('')
+
+  const [appointments, setAppointments] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     setHeaderExtra(
@@ -56,19 +86,120 @@ export function AgendamentosPage() {
     return () => setHeaderExtra(null)
   }, [setHeaderExtra])
 
+  useEffect(() => {
+    if (!token) return
+
+    async function loadAgenda() {
+      try {
+        setLoading(true)
+        setError(null)
+        const res = await api.getAgenda(token!)
+        setAppointments(res.dados || [])
+      } catch (err: any) {
+        setError(err.message || 'Falha ao carregar agendamentos')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadAgenda()
+  }, [token])
+
   const gridDays = useMemo(() => {
     const start = startOfWeek(startOfMonth(month), { weekStartsOn: 0 })
     const end = endOfWeek(endOfMonth(month), { weekStartsOn: 0 })
     return eachDayOfInterval({ start, end })
   }, [month])
 
-  const filteredList = useMemo(() => {
-    return agendamentosListaMock.filter((a) => {
-      if (quick !== 'Todos' && a.status !== quick) return false
-      if (q.trim() && !a.nome.toLowerCase().includes(q.toLowerCase())) return false
-      return true
+  // Calculate dynamic dots based on loaded appointments
+  const diasComAgendamento = useMemo(() => {
+    const set = new Set<number>()
+    appointments.forEach((a) => {
+      if (!a.inicio_em) return
+      const aDate = new Date(a.inicio_em)
+      if (
+        aDate.getFullYear() === month.getFullYear() &&
+        aDate.getMonth() === month.getMonth()
+      ) {
+        set.add(aDate.getDate())
+      }
     })
-  }, [quick, q])
+    return set
+  }, [appointments, month])
+
+  // Compute metrics dynamically from the database
+  const metrics = useMemo(() => {
+    let confirmados = 0
+    let pendentes = 0
+    let cancelados = 0
+    appointments.forEach((a) => {
+      const s = mapStatus(a.status)
+      if (s === 'Confirmado') confirmados++
+      else if (s === 'Pendente') pendentes++
+      else cancelados++
+    })
+    return {
+      total: appointments.length,
+      confirmados,
+      pendentes,
+      cancelados,
+    }
+  }, [appointments])
+
+  const filteredList = useMemo(() => {
+    return appointments
+      .filter((a) => {
+        if (!a.inicio_em) return false
+        const aDate = new Date(a.inicio_em)
+        if (!isSameDay(aDate, selected)) return false
+
+        const statusMapped = mapStatus(a.status)
+        if (quick !== 'Todos' && statusMapped !== quick) return false
+
+        if (q.trim()) {
+          const nomeMatch = (a.cidadao?.nome || '').toLowerCase().includes(q.toLowerCase())
+          const cpfMatch = (a.cidadao?.cpf || '').includes(q)
+          const descMatch = (a.descricao || '').toLowerCase().includes(q.toLowerCase())
+          if (!nomeMatch && !cpfMatch && !descMatch) return false
+        }
+        return true
+      })
+      .map((a) => {
+        const initials = (a.cidadao?.nome || '')
+          .split(' ')
+          .map((n: string) => n[0])
+          .slice(0, 2)
+          .join('')
+          .toUpperCase()
+
+        return {
+          id: a._id || a.id,
+          nome: a.cidadao?.nome || 'Sem Nome',
+          iniciais: initials || 'C',
+          cpfMascarado: maskCPF(a.cidadao?.cpf),
+          tipoServico: a.servico_id?.nome || 'Geral',
+          descricao: a.descricao || a.assunto || '',
+          horario: formatTime(a.inicio_em, a.fim_em),
+          status: mapStatus(a.status),
+        }
+      })
+  }, [appointments, selected, quick, q])
+
+  if (loading) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-12">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#0D1B4B] border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-6 text-[#CC2229] font-medium bg-red-50 border border-red-100 rounded-xl">
+        {error}
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-1 flex-col gap-6 pb-4">
@@ -76,28 +207,26 @@ export function AgendamentosPage() {
         <Metric
           icon={<CalIcon className="size-5 text-[#2563EB]" />}
           label="Total de Agendamentos"
-          value={agendamentosMetricas.total.valor}
-          sub={agendamentosMetricas.total.sub}
-          subPositive={agendamentosMetricas.total.positivo}
+          value={metrics.total}
+          sub="No banco de dados"
         />
         <Metric
           icon={<Check className="size-5 text-[#2563EB]" />}
           label="Confirmados"
-          value={agendamentosMetricas.confirmados.valor}
-          sub={agendamentosMetricas.confirmados.sub}
+          value={metrics.confirmados}
+          sub="Atendimentos ativos/concluídos"
         />
         <Metric
           icon={<ClipboardList className="size-5 text-amber-500" />}
           label="Pendentes"
-          value={agendamentosMetricas.pendentes.valor}
-          sub={agendamentosMetricas.pendentes.sub}
+          value={metrics.pendentes}
+          sub="Aguardando confirmação"
         />
         <Metric
           icon={<X className="size-5 text-[#CC2229]" />}
           label="Cancelados"
-          value={agendamentosMetricas.cancelados.valor}
-          sub={agendamentosMetricas.cancelados.sub}
-          subPositive={agendamentosMetricas.cancelados.positivo}
+          value={metrics.cancelados}
+          sub="Expirados ou cancelados"
         />
       </div>
 
@@ -136,12 +265,9 @@ export function AgendamentosPage() {
               {gridDays.map((day) => {
                 const inMonth = isSameMonth(day, month)
                 const isSelected = isSameDay(day, selected)
-                const isToday = isSameDay(day, initialSelected)
+                const isToday = isSameDay(day, new Date())
                 const dayNum = day.getDate()
-                const hasDot =
-                  day.getFullYear() === 2025 &&
-                  day.getMonth() === 4 &&
-                  diasComAgendamentoMaio2025.has(dayNum)
+                const hasDot = diasComAgendamento.has(dayNum)
 
                 return (
                   <button
@@ -273,30 +399,23 @@ export function AgendamentosPage() {
                     </td>
                   </tr>
                 ))}
+                {filteredList.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-3 py-8 text-center text-slate-500 font-medium">
+                      Nenhum agendamento para este dia.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
 
           <div className="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-4 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
             <p>
-              Mostrando <span className="font-semibold">1</span>-
+              Mostrando <span className="font-semibold">{filteredList.length > 0 ? 1 : 0}</span>-
               <span className="font-semibold">{filteredList.length}</span> de{' '}
-              <span className="font-semibold">12</span> agendamentos
+              <span className="font-semibold">{filteredList.length}</span> agendamentos do dia
             </p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
-              >
-                Anterior
-              </button>
-              <button
-                type="button"
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
-              >
-                Próxima
-              </button>
-            </div>
           </div>
         </section>
       </div>

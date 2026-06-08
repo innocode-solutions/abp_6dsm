@@ -3,16 +3,30 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Lock, LogIn, Mail, UserPlus } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { RobotIcon } from '../components/RobotIcon'
+import { api } from '../services/api'
 
 export function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
   const [showPwd, setShowPwd] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    login()
-    navigate('/dashboard', { replace: true })
+    setError(null)
+    setLoading(true)
+    try {
+      const res = await api.login(email, password)
+      login(res.dados.token, res.dados.usuario)
+      navigate('/dashboard', { replace: true })
+    } catch (err: any) {
+      setError(err.message || 'Credenciais inválidas.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -79,6 +93,12 @@ export function LoginPage() {
             <span className="font-semibold text-[#0D1B4B]">Procon Bot.</span>
           </p>
 
+          {error && (
+            <div className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-[#CC2229] border border-red-100 font-medium">
+              {error}
+            </div>
+          )}
+
           <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-slate-700">
@@ -91,6 +111,9 @@ export function LoginPage() {
                   required
                   autoComplete="email"
                   placeholder="Digite seu e-mail"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
                   className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-3 text-sm outline-none ring-[#2563EB]/30 transition focus:border-[#2563EB] focus:ring-2"
                 />
               </div>
@@ -107,6 +130,9 @@ export function LoginPage() {
                   required
                   autoComplete="current-password"
                   placeholder="Digite sua senha"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
                   className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-11 text-sm outline-none ring-[#2563EB]/30 transition focus:border-[#2563EB] focus:ring-2"
                 />
                 <button
@@ -135,10 +161,11 @@ export function LoginPage() {
 
             <button
               type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0D1B4B] py-3 text-sm font-semibold text-white shadow-md transition hover:bg-[#152a6e]"
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0D1B4B] py-3 text-sm font-semibold text-white shadow-md transition hover:bg-[#152a6e] disabled:opacity-50"
             >
               <LogIn className="size-4" aria-hidden />
-              Entrar
+              {loading ? 'Entrando...' : 'Entrar'}
             </button>
           </form>
 

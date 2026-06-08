@@ -1,8 +1,17 @@
 import { createContext } from 'react'
 
+export type UserInfo = {
+  id: string
+  nome: string
+  email: string
+  perfil: 'admin' | 'atendente'
+}
+
 export type AuthContextValue = {
   isAuthenticated: boolean
-  login: () => void
+  token: string | null
+  user: UserInfo | null
+  login: (token: string, user: UserInfo) => void
   logout: () => void
 }
 

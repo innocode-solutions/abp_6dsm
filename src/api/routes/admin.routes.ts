@@ -11,6 +11,10 @@ import {
   gerarHorarios,
   listarHorariosAdmin,
 } from "../controllers/admin/horarioAdmin.controller.js";
+import {
+  listarConversas,
+  obterHistoricoConversa,
+} from "../controllers/admin/conversas.controller.js";
 import { authenticateAdmin } from "../middleware/auth.middleware.js";
 import { requirePerfil } from "../middleware/perfil.middleware.js";
 import { adminLimiter } from "../middleware/rateLimiter.middleware.js";
@@ -29,6 +33,8 @@ router.get("/horarios", requirePerfil(...LEITURA), listarHorariosAdmin);
 router.post("/horarios/gerar", requirePerfil(...GESTAO), gerarHorarios);
 router.post("/bloqueios", requirePerfil(...GESTAO), criarBloqueio);
 router.delete("/bloqueios/:id", requirePerfil(...GESTAO), removerBloqueio);
+router.get("/conversas", requirePerfil(...LEITURA), listarConversas);
+router.get("/conversas/:userId", requirePerfil(...LEITURA), obterHistoricoConversa);
 router.post("/:codigo/check-in", requirePerfil(...OPERACAO), realizarCheckIn);
 router.post("/:codigo/nao-compareceu", requirePerfil(...OPERACAO), marcarNaoCompareceu);
 router.post("/:codigo/concluir", requirePerfil(...OPERACAO), concluirAtendimento);

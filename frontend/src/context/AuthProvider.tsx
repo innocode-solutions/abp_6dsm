@@ -1,40 +1,57 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
-import { AuthContext } from './auth-context'
+import { AuthContext, type UserInfo } from './auth-context'
 
-const STORAGE_KEY = 'procon-bot-admin-auth'
+const TOKEN_KEY = 'procon-bot-auth-token'
+const USER_KEY = 'procon-bot-auth-user'
 
-function readStored(): boolean {
+function getStoredToken(): string | null {
   try {
-    return localStorage.getItem(STORAGE_KEY) === '1'
+    return localStorage.getItem(TOKEN_KEY)
   } catch {
-    return false
+    return null
+  }
+}
+
+function getStoredUser(): UserInfo | null {
+  try {
+    const raw = localStorage.getItem(USER_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
   }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(readStored)
+  const [token, setToken] = useState<string | null>(getStoredToken)
+  const [user, setUser] = useState<UserInfo | null>(getStoredUser)
 
-  const login = useCallback(() => {
+  const isAuthenticated = useMemo(() => token !== null, [token])
+
+  const login = useCallback((newToken: string, newUser: UserInfo) => {
     try {
-      localStorage.setItem(STORAGE_KEY, '1')
+      localStorage.setItem(TOKEN_KEY, newToken)
+      localStorage.setItem(USER_KEY, JSON.stringify(newUser))
     } catch {
       /* ignore */
     }
-    setIsAuthenticated(true)
+    setToken(newToken)
+    setUser(newUser)
   }, [])
 
   const logout = useCallback(() => {
     try {
-      localStorage.removeItem(STORAGE_KEY)
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(USER_KEY)
     } catch {
       /* ignore */
     }
-    setIsAuthenticated(false)
+    setToken(null)
+    setUser(null)
   }, [])
 
   const value = useMemo(
-    () => ({ isAuthenticated, login, logout }),
-    [isAuthenticated, login, logout],
+    () => ({ isAuthenticated, token, user, login, logout }),
+    [isAuthenticated, token, user, login, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
