@@ -1,9 +1,37 @@
-import { Router, Request, Response } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
+import jwt from "jsonwebtoken";
 import { ZodError } from "zod";
-import { authMiddleware } from "../middleware/auth.middleware";
 import { GetDashboardUseCase } from "../../application/use-cases/GetDashboardUseCase";
 import { IHistoryRepository } from "../../messages/history";
 import { parseUserIds } from "../validation/dashboard.schema";
+
+function authMiddleware(req: Request, res: Response, next: NextFunction): void {
+  const authorization = req.header("authorization");
+  const secret = process.env.JWT_SECRET?.trim();
+
+  if (!secret) {
+    res.status(500).json({ error: "JWT_SECRET não configurado." });
+    return;
+  }
+
+  if (!authorization?.startsWith("Bearer ")) {
+    res.status(401).json({ error: "Token não informado." });
+    return;
+  }
+
+  const token = authorization.slice("Bearer ".length).trim();
+  if (!token) {
+    res.status(401).json({ error: "Token não informado." });
+    return;
+  }
+
+  try {
+    jwt.verify(token, secret);
+    next();
+  } catch {
+    res.status(401).json({ error: "Token inválido." });
+  }
+}
 
 /**
  * Registra as rotas de KPI/dashboard.

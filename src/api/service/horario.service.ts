@@ -56,15 +56,26 @@ export async function getHorariosDisponiveis(
   const fimIntervalo = fimDoDiaBrasilia(fimBase);
   const maxResultados = limite ?? LIMITE_PADRAO;
 
-  const horarios = await HorarioModel.find({
-    servico_id: toObjectId(servico_id),
-    funcionario_id: { $in: funcionariosAtivos },
-    status: "disponivel",
-    inicio_em: { $gte: inicioIntervalo, $lte: fimIntervalo },
-  })
-    .sort({ inicio_em: 1 })
-    .limit(maxResultados)
-    .lean();
+  const horarios = await HorarioModel.aggregate<IHorario>([
+    {
+      $match: {
+        servico_id: toObjectId(servico_id),
+        funcionario_id: { $in: funcionariosAtivos },
+        status: "disponivel",
+        inicio_em: { $gte: inicioIntervalo, $lte: fimIntervalo },
+      },
+    },
+    { $sort: { inicio_em: 1, _id: 1 } },
+    {
+      $group: {
+        _id: "$inicio_em",
+        horario: { $first: "$$ROOT" },
+      },
+    },
+    { $replaceRoot: { newRoot: "$horario" } },
+    { $sort: { inicio_em: 1, _id: 1 } },
+    { $limit: maxResultados },
+  ]);
 
   return horarios.map((horario) => ({
     _id: horario._id.toString(),

@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const findMock = vi.fn();
+const aggregateMock = vi.fn();
 
 vi.mock("../../../src/api/models/Horario.model.js", () => ({
   default: {
-    find: (...args: unknown[]) => findMock(...args),
+    aggregate: (...args: unknown[]) => aggregateMock(...args),
   },
 }));
 
@@ -30,23 +30,16 @@ describe("horario.service", () => {
 
     listarIdsFuncionariosAtivosMock.mockResolvedValue([funcionarioId]);
 
-    findMock.mockReturnValue({
-      sort: () => ({
-        limit: () => ({
-          lean: () =>
-            Promise.resolve([
-              {
-                _id: new mongoose.Types.ObjectId(),
-                funcionario_id: funcionarioId,
-                servico_id: servicoId,
-                inicio_em: inicio,
-                fim_em: new Date("2026-05-25T14:30:00.000Z"),
-                status: "disponivel",
-              },
-            ]),
-        }),
-      }),
-    });
+    aggregateMock.mockResolvedValue([
+      {
+        _id: new mongoose.Types.ObjectId(),
+        funcionario_id: funcionarioId,
+        servico_id: servicoId,
+        inicio_em: inicio,
+        fim_em: new Date("2026-05-25T14:30:00.000Z"),
+        status: "disponivel",
+      },
+    ]);
 
     const { getHorariosDisponiveis } = await import(
       "../../../src/api/service/horario.service.js"
@@ -57,5 +50,15 @@ describe("horario.service", () => {
     expect(resultado[0].exibicao.data).toBe("25/05/2026");
     expect(resultado[0].exibicao.hora).toMatch(/^\d{2}:\d{2}$/);
     expect(resultado[0].exibicao.dia_semana).toBe("segunda-feira");
+    expect(aggregateMock).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          $group: expect.objectContaining({
+            _id: "$inicio_em"
+          })
+        }),
+        { $limit: 5 }
+      ])
+    );
   });
 });

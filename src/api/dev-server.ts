@@ -37,7 +37,7 @@ if (!secret) {
   process.exit(1);
 }
 
-const token = jwt.sign({ sub: "dev-user", role: "admin" }, secret, { expiresIn: "1h" });
+const token = jwt.sign({ id: "dev-user", perfil: "admin" }, secret, { expiresIn: "1h" });
 
 // ── Sobe o servidor ───────────────────────────────────────────────────────────
 const app = createHttpServer(new InMemoryHistoryRepository());
