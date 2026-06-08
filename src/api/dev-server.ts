@@ -11,14 +11,30 @@ import "dotenv/config";
 import jwt from "jsonwebtoken";
 
 import { createHttpServer } from "./server-http";
-import { ChatMessage, IHistoryRepository } from "../messages/history";
+import { logger } from "../monitoring/logger";
+import type { ChatMessage, IHistoryRepository } from "../messages/history";
 
 // ── Repositório fake em memória para testes locais ────────────────────────────
 class InMemoryHistoryRepository implements IHistoryRepository {
   private store: ChatMessage[] = [
-    { from: "5511999990001", body: "Quero cancelar meu plano", direction: "in",  timestamp: new Date().toISOString() },
-    { from: "5511999990001", body: "Ok, vou te ajudar.",       direction: "out", timestamp: new Date().toISOString() },
-    { from: "5511999990002", body: "Produto com defeito",      direction: "in",  timestamp: new Date().toISOString() }
+    {
+      from: "5511999990001",
+      body: "Quero cancelar meu plano",
+      direction: "in",
+      timestamp: new Date().toISOString()
+    },
+    {
+      from: "5511999990001",
+      body: "Ok, vou te ajudar.",
+      direction: "out",
+      timestamp: new Date().toISOString()
+    },
+    {
+      from: "5511999990002",
+      body: "Produto com defeito",
+      direction: "in",
+      timestamp: new Date().toISOString()
+    }
   ];
 
   async save(message: ChatMessage): Promise<void> {
@@ -26,24 +42,45 @@ class InMemoryHistoryRepository implements IHistoryRepository {
   }
 
   async findByUser(userId: string): Promise<ChatMessage[]> {
-    return this.store.filter((m) => m.from === userId);
+    return this.store.filter((message) => message.from === userId);
   }
 }
 
 // ── JWT para testes ───────────────────────────────────────────────────────────
 const secret = process.env.JWT_SECRET;
+
 if (!secret) {
-  console.error("❌  JWT_SECRET não definido no .env — abortando.");
+  logger.error("JWT_SECRET não definido no .env — abortando.", {
+    module: "DEV_SERVER"
+  });
+
   process.exit(1);
 }
 
-const token = jwt.sign({ id: "dev-user", perfil: "admin" }, secret, { expiresIn: "1h" });
+const token = jwt.sign(
+  {
+    id: "dev-user",
+    perfil: "admin"
+  },
+  secret,
+  {
+    expiresIn: "1h"
+  }
+);
 
 // ── Sobe o servidor ───────────────────────────────────────────────────────────
-const app = createHttpServer(new InMemoryHistoryRepository());
+const app = createHttpServer({
+  historyRepository: new InMemoryHistoryRepository()
+});
+
 const PORT = Number(process.env.HTTP_PORT ?? 3000);
 
 app.listen(PORT, () => {
+  logger.info("Servidor HTTP de desenvolvimento iniciado.", {
+    module: "DEV_SERVER",
+    port: PORT
+  });
+
   console.log("\n╔══════════════════════════════════════════════════════════╗");
   console.log("║       ProconBot — Servidor HTTP de desenvolvimento       ║");
   console.log("╠══════════════════════════════════════════════════════════╣");
@@ -64,5 +101,7 @@ app.listen(PORT, () => {
   console.log(token);
   console.log("\n─── curl de exemplo ────────────────────────────────────────");
   console.log(`curl -H "Authorization: Bearer ${token}" \\`);
-  console.log(`  "http://localhost:${PORT}/api/kpi/dashboard?users=5511999990001,5511999990002"\n`);
+  console.log(
+    `  "http://localhost:${PORT}/api/kpi/dashboard?users=5511999990001,5511999990002"\n`
+  );
 });

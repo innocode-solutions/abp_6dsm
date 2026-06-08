@@ -2,23 +2,31 @@ import express from "express";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { IHistoryRepository } from "../messages/history";
+import { buildHealthPayload } from "../monitoring/health";
+import { logger } from "../monitoring/logger";
+import { errorHandler as errorHandlerMiddleware } from "../../src/api/middleware/errorHandler.middleware";
+import { requestLoggerMiddleware } from "./middleware/request-logger.middleware";
 import { createKpiRouter } from "./routes/kpi.routes";
+
+export interface HttpServerOptions {
+  historyRepository?: IHistoryRepository;
+}
 
 /**
  * Rate-limit global: 100 req / 15 min por IP.
- * Protege contra scraping e força-bruta no endpoint de login futuro.
+ * Protege contra scraping e abuso de requisições.
  */
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
-  standardHeaders: true,  // envia RateLimit-* headers (RFC 6585)
+  standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Muitas requisições. Tente novamente em 15 minutos." }
 });
 
 /**
- * Rate-limit mais restrito para rotas de KPI autenticadas:
- * 30 req / 1 min por IP — evita enumeração de usuários mesmo com token válido.
+ * Rate-limit mais restrito para rotas de KPI.
+ * Evita abuso e enumeração de dados.
  */
 const kpiLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -30,55 +38,68 @@ const kpiLimiter = rateLimit({
 
 /**
  * Cria e configura o servidor HTTP (Express) separado do bot WhatsApp.
- * Recebe os repositórios por injeção para manter a camada testável.
+ * Mantém health-check público, logs de requisição e tratamento centralizado de erros.
  */
-export function createHttpServer(historyRepository: IHistoryRepository) {
+export function createHttpServer(options: HttpServerOptions = {}) {
+  const { historyRepository } = options;
   const app = express();
 
-  // ── Segurança: cabeçalhos HTTP hardened ────────────────────────────────────
+  // Segurança: cabeçalhos HTTP hardened
   app.use(
     helmet({
-      // Content-Security-Policy: bloqueia scripts externos não autorizados (XSS)
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc:  ["'self'"],
-          styleSrc:   ["'self'"],
-          imgSrc:     ["'self'", "data:"],
-          objectSrc:  ["'none'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'"],
+          imgSrc: ["'self'", "data:"],
+          objectSrc: ["'none'"],
           upgradeInsecureRequests: []
         }
       },
-      // X-Frame-Options: DENY — bloqueia clickjacking
       frameguard: { action: "deny" },
-      // X-Content-Type-Options: nosniff — evita MIME-sniffing
       noSniff: true,
-      // Strict-Transport-Security — força HTTPS em produção
       hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
-      // Remove X-Powered-By: Express
       hidePoweredBy: true
     })
   );
 
-  // ── Rate limiting global ───────────────────────────────────────────────────
+  // Log de cada requisição recebida
+  app.use(requestLoggerMiddleware);
+
+  // Health-check público, disponível mesmo sem MongoDB
+  // Fica fora do rate-limit global para não atrapalhar probes do Railway/Docker.
+  app.get("/health", (_req, res) => {
+    res.json(buildHealthPayload());
+  });
+
+  // Rate limiting global
   app.use(globalLimiter);
 
-  // ── Parsers com limite de tamanho (evita payload bomb) ────────────────────
+  // Parsers com limite de tamanho
   app.use(express.json({ limit: "10kb" }));
   app.use(express.urlencoded({ extended: false, limit: "10kb" }));
 
-  // ── Health-check público ───────────────────────────────────────────────────
-  app.get("/health", (_req, res) => {
-    res.json({ status: "ok", timestamp: new Date().toISOString() });
-  });
+  // Rotas de KPI
+  if (historyRepository) {
+    app.use("/api/kpi", kpiLimiter, createKpiRouter(historyRepository));
+  } else {
+    logger.warn(
+      "Rotas /api/kpi desabilitadas: historyRepository não disponível.",
+      {
+        module: "API",
+        reason: "MongoDB ausente ou desconectado"
+      }
+    );
+  }
 
-  // ── Rotas de KPI: JWT + rate-limit específico ──────────────────────────────
-  app.use("/api/kpi", kpiLimiter, createKpiRouter(historyRepository));
-
-  // ── 404 catch-all ─────────────────────────────────────────────────────────
+  // 404 catch-all
   app.use((_req, res) => {
     res.status(404).json({ error: "Rota não encontrada." });
   });
+
+  // Tratamento centralizado de erros
+  app.use(errorHandlerMiddleware);
 
   return app;
 }

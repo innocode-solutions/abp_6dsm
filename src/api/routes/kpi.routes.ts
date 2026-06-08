@@ -7,12 +7,6 @@ import { parseUserIds } from "../validation/dashboard.schema";
 
 function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   const authorization = req.header("authorization");
-  const secret = process.env.JWT_SECRET?.trim();
-
-  if (!secret) {
-    res.status(500).json({ error: "JWT_SECRET não configurado." });
-    return;
-  }
 
   if (!authorization?.startsWith("Bearer ")) {
     res.status(401).json({ error: "Token não informado." });
@@ -20,8 +14,16 @@ function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   }
 
   const token = authorization.slice("Bearer ".length).trim();
+
   if (!token) {
     res.status(401).json({ error: "Token não informado." });
+    return;
+  }
+
+  const secret = process.env.JWT_SECRET?.trim();
+
+  if (!secret) {
+    res.status(500).json({ error: "JWT_SECRET não configurado." });
     return;
   }
 
@@ -45,37 +47,40 @@ export function createKpiRouter(historyRepository: IHistoryRepository): Router {
    * Retorna métricas agregadas de atendimento para os usuários informados.
    * Requer Authorization: Bearer <token>
    */
-  router.get("/dashboard", authMiddleware, async (req: Request, res: Response) => {
-    try {
-      const userIds = parseUserIds(req.query.users);
+  router.get(
+    "/dashboard",
+    authMiddleware,
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const userIds = parseUserIds(req.query.users);
 
-      const useCase = new GetDashboardUseCase(historyRepository);
-      const result = await useCase.execute(userIds);
+        const useCase = new GetDashboardUseCase(historyRepository);
+        const result = await useCase.execute(userIds);
 
-      res.json(result);
-    } catch (err) {
-      if (err instanceof ZodError) {
-        res.status(400).json({
-          error: "Parâmetros inválidos.",
-          details: err.issues.map((e) => e.message)
-        });
-        return;
+        res.json(result);
+      } catch (err) {
+        if (err instanceof ZodError) {
+          res.status(400).json({
+            error: "Parâmetros inválidos.",
+            details: err.issues.map((e) => e.message)
+          });
+          return;
+        }
+
+        if (err instanceof Error && err.message.includes("UserIds inválidos")) {
+          res.status(400).json({ error: err.message });
+          return;
+        }
+
+        if (err instanceof Error && err.message.includes("Limite")) {
+          res.status(400).json({ error: err.message });
+          return;
+        }
+
+        next(err);
       }
-
-      if (err instanceof Error && err.message.includes("UserIds inválidos")) {
-        res.status(400).json({ error: err.message });
-        return;
-      }
-
-      if (err instanceof Error && err.message.includes("Limite")) {
-        res.status(400).json({ error: err.message });
-        return;
-      }
-
-      console.error("[KPI] Erro ao processar dashboard:", err);
-      res.status(500).json({ error: "Erro interno ao calcular métricas." });
     }
-  });
+  );
 
   return router;
 }
