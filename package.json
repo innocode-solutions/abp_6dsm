@@ -9,7 +9,7 @@
   },
   "scripts": {
     "test": "vitest",
-    "start": "node dist/src/server.js",
+    "start": "node dist/src/start.js",
     "test:run": "vitest run",
     "build:bot": "tsc",
     "build:api": "tsc -p tsconfig.api.json",
