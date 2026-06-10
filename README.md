@@ -7,6 +7,7 @@
 <p align="center">
   <a href="#sobre">Sobre</a> |
   <a href="#visao">Visão do Produto</a> |
+  <a href="#inicializacao">Como Inicializar</a> 
   <a href="#backlog">Product Backlog</a> |
   <a href="#sprints">Sprints</a> |
   <a href="#fluxos">Fluxos</a> |
@@ -56,6 +57,142 @@ Um chatbot inteligente acessível via **WhatsApp** que fornece orientação inic
 <h3>Objetivo</h3>
 
 Auxiliar cidadãos a entender seus direitos e os próximos passos para resolver problemas de consumo.
+
+---
+
+<span id="inicializacao"></span>
+
+<h1 align="center">Como Inicializar o Projeto</h1>
+
+<p>
+
+Esta seção descreve como executar o <strong>backend</strong> do ProconBot Jacareí localmente. O frontend do painel administrativo encontra-se em <code>frontend/</code>, porém está <strong>mockado</strong> e não é necessário para rodar o chatbot no momento.
+
+</p>
+
+<h3>Pré-requisitos</h3>
+
+| Requisito | Versão / observação |
+|-----------|---------------------|
+| [Node.js](https://nodejs.org/) | 22.x (mesma versão usada no CI e no Docker) |
+| [npm](https://www.npmjs.com/) | Incluso com o Node.js |
+| MongoDB | Opcional — habilita histórico, sessões e índice RAG no banco |
+| Chave Gemini | Opcional — habilita busca semântica (RAG) e respostas com LLM |
+
+<h3>Estrutura relevante do backend</h3>
+
+```
+abp_6dsm/
+├── src/                 # Código TypeScript (bot, fluxos, RAG, WhatsApp)
+├── docs/knowledge/      # Base do CDC em markdown
+├── .env.example         # Modelo de variáveis de ambiente
+├── package.json         # Scripts npm do backend
+└── docker/Dockerfile    # Imagem para deploy (Node + Chromium)
+```
+
+<h3>Passo a passo</h3>
+
+**1. Clonar o repositório e instalar dependências**
+
+```bash
+git clone https://github.com/innocode-solutions/abp_6dsm.git
+cd abp_6dsm
+npm install
+```
+
+No Windows (PowerShell), se `npm` for bloqueado pela política de execução, use `npm.cmd` nos comandos abaixo (ex.: `npm.cmd install`, `npm.cmd run dev`).
+
+**2. Configurar variáveis de ambiente**
+
+Copie o arquivo de exemplo e ajuste os valores na raiz do projeto:
+
+```bash
+cp .env.example .env
+```
+
+No PowerShell: `Copy-Item .env.example .env`
+
+| Variável | Obrigatória | Descrição |
+|----------|:-----------:|-----------|
+| `MONGODB_URI` | Não | URI do MongoDB. Sem ela, o bot funciona com sessão em memória |
+| `MONGODB_DB_NAME` | Não | Nome do banco (padrão: extraído da URI) |
+| `GEMINI_API_KEY` | Não | Chave da [Google AI Studio](https://aistudio.google.com/apikey) para RAG + LLM |
+| `WHATSAPP_PHONE_NUMBER` | Não | Número em formato internacional para pareamento por código (ex.: `5511999999999`) |
+
+**3. (Opcional) Subir o MongoDB e validar a conexão**
+
+Com o MongoDB em execução (local, Docker ou Atlas), defina `MONGODB_URI` no `.env` e execute:
+
+```bash
+npm run db:ping
+```
+
+Se a conexão estiver correta, o terminal exibirá `Ping OK: conexão com MongoDB validada.`
+
+**4. (Opcional) Gerar o índice semântico do CDC**
+
+Necessário para **busca semântica** quando `GEMINI_API_KEY` estiver definida (o bot sobe sem esse passo, mas cai em busca por palavra-chave até o índice existir). O script lê `docs/knowledge/cdc.md`, gera embeddings e salva em `src/knowledge/cdc-index.json` (e no MongoDB, se `MONGODB_URI` estiver definida):
+
+```bash
+npm run rag:index
+```
+
+**5. Iniciar o servidor**
+
+Modo desenvolvimento (TypeScript direto via `tsx`, sem build prévio):
+
+```bash
+npm run dev
+```
+
+Modo produção local:
+
+```bash
+npm run build
+npm start
+```
+
+**6. Autenticar o WhatsApp**
+
+Na primeira execução, o `whatsapp-web.js` solicita login. Acompanhe o terminal:
+
+- **QR Code** — exibido no console; escaneie em *WhatsApp → Dispositivos conectados → Conectar um dispositivo*.
+- **Código de pareamento** — defina `WHATSAPP_PHONE_NUMBER` no `.env`; o código de 8 caracteres aparecerá no log. No celular, use *Conectar com número de telefone*.
+
+Após autenticado, a sessão fica em `.wwebjs_auth/` (ou no caminho definido em `WHATSAPP_AUTH_PATH`). Nas próximas execuções, o login costuma ser reutilizado automaticamente.
+
+Quando tudo estiver certo, você verá mensagens como `[WhatsApp] Conectado e pronto para uso.` e `Servidor iniciado com arquitetura de provedores e persistência.`
+
+<h3>Scripts úteis do backend</h3>
+
+| Comando | Descrição |
+|---------|-----------|
+| `npm run dev` | Sobe o bot em modo desenvolvimento |
+| `npm run build` | Compila TypeScript para `dist/` |
+| `npm start` | Executa a versão compilada |
+| `npm test` / `npm run test:run` | Executa testes com Vitest |
+| `npm run typecheck` | Verifica tipos sem gerar build |
+| `npm run db:ping` | Testa conexão com o MongoDB |
+| `npm run db:inspect` | Inspeciona coleções do banco |
+| `npm run db:seed-sample` | Insere dados de exemplo |
+| `npm run rag:index` | Gera/atualiza índice vetorial do CDC |
+
+<h3>Execução com Docker (opcional)</h3>
+
+Para ambiente containerizado (inclui Chromium para o WhatsApp):
+
+```bash
+docker build -f docker/Dockerfile -t proconbot-jacarei .
+docker run --env-file .env proconbot-jacarei
+```
+
+Em produção, o deploy utiliza [Railway](https://railway.app/) com as variáveis descritas em `.env.example` e em `RELEASE.md`.
+
+<h3>Comportamento sem dependências opcionais</h3>
+
+- Sem `MONGODB_URI`: fluxos e conversas funcionam com **sessão em memória**; histórico não é persistido.
+- Sem `GEMINI_API_KEY`: o sistema usa **busca por palavra-chave** no CDC, sem LLM nem embeddings.
+- Com `GEMINI_API_KEY` mas sem índice (`npm run rag:index` ou dados no MongoDB): o LLM pode responder, porém a busca no CDC permanece por **palavra-chave** até o índice ser gerado.
 
 ---
 
@@ -133,8 +270,22 @@ Implementar a comunicação via WhatsApp e os primeiros fluxos de atendimento do
 
 <div align="center">
   <p><i>Gráfico de Burndown do Sprint 1</i></p>
-  <img width="1366" height="766" alt="burndown_sprint1" src="https://github.com/user-attachments/assets/31e64479-ff63-4a63-9f79-c9de1b3f69a0" />
+  <img width="1366" height="766" alt="Sprint 1 - Burndown" src="https://github.com/user-attachments/assets/1a14ca77-bad2-42d5-8d5e-afa28d0f290a" />
 </div>
+
+---
+
+**Retrospectiva — Sprint 1**
+ 
+**✅ O que foi bem**
+- Os fluxos decisórios foram bem definidos e receberam feedback positivo do professor.
+- A integração com WhatsApp via whatsapp-web.js foi entregue dentro do prazo.
+- A comunicação entre os membros da equipe foi efetiva durante toda a sprint.
+- O motor de fluxo decisório atendeu os casos de uso previstos (cobrança indevida, empréstimo não reconhecido, arrependimento e cancelamento de plano).
+**⚠️ O que pode melhorar**
+- A estimativa de story points precisa ser revisada antes do início de cada sprint para garantir coerência com o gráfico de burndown.
+- A documentação de setup do projeto (como subir localmente) precisa ser iniciada em paralelo ao desenvolvimento, não apenas ao final.
+- O gráfico de burndown não refletiu os story points reais da sprint — deve partir do total de pontos do backlog, não da quantidade de tarefas.
 
 </details>
 
@@ -159,6 +310,24 @@ Implementar base de conhecimento, interpretação de linguagem e persistência d
 | US18 | RF03 | Extrair entidades | 3 |
 | US31 | RNF02, RNF03 | Configurar banco de dados | 5 |
 | US32 | RF03, RF06 | Persistir sessões no banco | 3 |
+
+<br>
+
+<div align="center">
+  <p><i>Gráfico de Burndown do Sprint 2</i></p>
+  <img width="1366" height="766" alt="Sprint 1 - Burndown" src="https://github.com/user-attachments/assets/1c00a756-d64b-4881-b014-557a3af94a34" />
+</div>
+
+---
+ 
+**Retrospectiva — Sprint 2**
+ 
+**✅ O que foi bem**
+- A estruturação da base FAQ do PROCON foi concluída e servirá como base sólida para as respostas do bot.
+- A pipeline de RAG (ingestão do CDC → chunking → embeddings → busca semântica) foi implementada com sucesso.
+- A equipe conseguiu lidar com tecnologias novas (embeddings, busca vetorial) dentro do prazo da sprint.
+**⚠️ O que pode melhorar**
+- A comunicação decaiu em relação a sprint anterior.
 
 </details>
 
@@ -202,6 +371,7 @@ Realizar deploy em nuvem, implementar observabilidade, governança, documentaç�
 | Dev Team        | Igor Fonseca             | [![GitHub Badge](https://img.shields.io/badge/GitHub-111217?style=flat-square&logo=github&logoColor=white)](https://github.com/Igor-Fons) | [![Linkedin Badge](https://img.shields.io/badge/Linkedin-blue?style=flat-square&logo=Linkedin&logoColor=white)](https://www.linkedin.com/in/igor-fonseca-84277226a/) |
 | Dev Team    | Jonatas Filipe Carvalho  | [![GitHub Badge](https://img.shields.io/badge/GitHub-111217?style=flat-square&logo=github&logoColor=white)](https://github.com/filipejonatas) | [![Linkedin Badge](https://img.shields.io/badge/Linkedin-blue?style=flat-square&logo=Linkedin&logoColor=white)](https://www.linkedin.com/in/jonatas-filipe-aa4534165/) |
 | Dev Team        | Samuel Lucas Vieira de Melo | [![GitHub Badge](https://img.shields.io/badge/GitHub-111217?style=flat-square&logo=github&logoColor=white)](https://github.com/SamuelLucasVieira) | [![Linkedin Badge](https://img.shields.io/badge/Linkedin-blue?style=flat-square&logo=Linkedin&logoColor=white)](https://www.linkedin.com/in/samuel-lucas-7a3256144/) |
+| Dev Team        | Vinicius Barbosa Ferndandes | [![GitHub Badge](https://img.shields.io/badge/GitHub-111217?style=flat-square&logo=github&logoColor=white)](https://github.com/Viniciusfernandes2) | [![Linkedin Badge](https://img.shields.io/badge/Linkedin-blue?style=flat-square&logo=Linkedin&logoColor=white)](https://www.linkedin.com/in/vinicius-fernandes-6088a323b/) |
 </div>
 
 ---

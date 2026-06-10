@@ -1,0 +1,24 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+  --color-procon-navy: #0d1b4b;
+  --color-procon-navy-mid: #1a2d6b;
+  --color-procon-red: #cc2229;
+  --color-procon-bg: #f4f6fb;
+  --color-procon-active: #2563eb;
+  --color-procon-sidebar-from: #0a1628;
+  --color-procon-sidebar-to: #0d1f4c;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-procon-bg);
+  -webkit-font-smoothing: antialiased;
+}

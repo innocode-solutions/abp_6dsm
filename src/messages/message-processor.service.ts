@@ -1,3 +1,4 @@
+import type { AgendamentoConversationHandler } from "../agendamento";
 import type { IEntityExtractionRepository } from "../extraction/entity-extraction-repository.interface";
 import type { FlowNlpClassification } from "../extraction/types";
 import { extractStructuralEntities } from "../extraction/structural-regex";
@@ -38,7 +39,8 @@ export class MessageProcessorService implements IMessageProcessor {
     private flowMatcher: IFlowMatcher,
     private sessionStore: ISessionStore,
     private knowledgeService?: KnowledgeService,
-    private entityRepository?: IEntityExtractionRepository
+    private entityRepository?: IEntityExtractionRepository,
+    private agendamentoConversation?: AgendamentoConversationHandler
   ) {}
 
   async processIncomingMessage(
@@ -66,6 +68,17 @@ export class MessageProcessorService implements IMessageProcessor {
 
   private async dispatchMessage(from: string, body: string): Promise<DispatchOutcome> {
     const existingSession = await this.sessionStore.get(from);
+    const agendamentoResponse = await this.agendamentoConversation?.handle(from, body, {
+      allowStart: !existingSession
+    });
+
+    if (agendamentoResponse) {
+      return {
+        text: agendamentoResponse,
+        nlpClassification: null,
+        flowIdActive: "agendamento"
+      };
+    }
 
     if (existingSession) {
       if (body.trim().toLowerCase() === "menu" || body.trim().toLowerCase() === "0") {
@@ -114,7 +127,7 @@ export class MessageProcessorService implements IMessageProcessor {
 
       await this.sessionStore.clear(from);
       return {
-        text: this.formatCompletedResponse(result.response),
+        text: await this.formatCompletedResponse(from, result.response),
         nlpClassification: null,
         flowIdActive: undefined
       };
@@ -184,8 +197,11 @@ export class MessageProcessorService implements IMessageProcessor {
     const knowledgeAnswer = await this.knowledgeService?.findAnswer(body);
 
     if (knowledgeAnswer) {
+      const schedulingOffer =
+        (await this.agendamentoConversation?.offerScheduling?.(from)) ?? "";
+
       return {
-        text: knowledgeAnswer + MENU_REMINDER,
+        text: knowledgeAnswer + schedulingOffer + MENU_REMINDER,
         nlpClassification,
         flowIdActive: undefined
       };
@@ -245,7 +261,10 @@ export class MessageProcessorService implements IMessageProcessor {
     return `${question}\n\n${formattedOptions}${MENU_REMINDER}`;
   }
 
-  private formatCompletedResponse(response: FlowResponse): string {
+  private async formatCompletedResponse(
+    userId: string,
+    response: FlowResponse
+  ): Promise<string> {
     let text = `${response.summary}\n\n${response.message}`;
 
     if (response.recommendations?.length) {
@@ -260,6 +279,9 @@ export class MessageProcessorService implements IMessageProcessor {
       text += `\n\n${response.disclaimer}`;
     }
 
-    return text + MENU_REMINDER;
+    const schedulingOffer =
+      (await this.agendamentoConversation?.offerScheduling?.(userId)) ?? "";
+
+    return text + schedulingOffer + MENU_REMINDER;
   }
 }

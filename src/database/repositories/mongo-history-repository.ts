@@ -6,7 +6,7 @@ export class MongoHistoryRepository implements IHistoryRepository {
     await ChatMessageModel.create({
       from: message.from,
       direction: message.direction,
-      body: message.body,
+      body: message.body.trim() || "[mensagem sem texto]",
       clientTimestamp: message.timestamp
     });
   }

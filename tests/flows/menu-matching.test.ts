@@ -40,7 +40,7 @@ describe("Menu and Numeric Selection", () => {
     it("deve gerar menu com todos os fluxos", () => {
       const { menu, flowMap } = getFlowsAsMenu(flowRegistry);
 
-      expect(menu).toContain("Olá! Sou o ProconBot Jacareí");
+      expect(menu).toContain("assistente virtual do PROCON");
       expect(menu).toContain("1.");
       expect(menu).toContain("2.");
       expect(menu).toContain("3.");
