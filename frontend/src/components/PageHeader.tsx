@@ -2,16 +2,23 @@ import type { ReactNode } from 'react'
 import { Calendar, Menu, RefreshCw } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { REFERENCE_DATE } from '../data/mockData'
 
 type PageHeaderProps = {
   title: string
   onMenuClick: () => void
   extraActions?: ReactNode
+  onRefresh?: () => void
+  isRefreshing?: boolean
 }
 
-export function PageHeader({ title, onMenuClick, extraActions }: PageHeaderProps) {
-  const dataLabel = format(REFERENCE_DATE, "dd/MM/yyyy", { locale: ptBR })
+export function PageHeader({
+  title,
+  onMenuClick,
+  extraActions,
+  onRefresh,
+  isRefreshing = false,
+}: PageHeaderProps) {
+  const dataLabel = format(new Date(), 'dd/MM/yyyy', { locale: ptBR })
 
   return (
     <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 bg-[#f4f6fb]/95 px-4 py-4 backdrop-blur lg:px-8">
@@ -31,20 +38,24 @@ export function PageHeader({ title, onMenuClick, extraActions }: PageHeaderProps
 
       <div className="flex flex-wrap items-center gap-2">
         {extraActions}
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm"
-        >
+        <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm">
           <Calendar className="size-4 text-[#0D1B4B]" aria-hidden />
           <span>{dataLabel}</span>
-          <span className="text-slate-400">▾</span>
-        </button>
+        </div>
         <button
           type="button"
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-[#0D1B4B] shadow-sm"
+          onClick={onRefresh}
+          disabled={!onRefresh || isRefreshing}
+          className={[
+            'inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-[#0D1B4B] shadow-sm transition',
+            !onRefresh || isRefreshing ? 'cursor-not-allowed opacity-60' : 'hover:bg-slate-50',
+          ].join(' ')}
         >
-          <RefreshCw className="size-4" aria-hidden />
-          Atualizar
+          <RefreshCw
+            className={['size-4', isRefreshing ? 'animate-spin' : ''].join(' ')}
+            aria-hidden
+          />
+          {isRefreshing ? 'Atualizando' : 'Atualizar'}
         </button>
       </div>
     </header>
