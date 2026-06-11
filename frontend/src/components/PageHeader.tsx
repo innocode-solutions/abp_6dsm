@@ -8,6 +8,8 @@ type PageHeaderProps = {
   title: string
   onMenuClick: () => void
   extraActions?: ReactNode
+  onRefresh?: () => void
+  isRefreshing?: boolean
 }
 
 export function PageHeader({ title, onMenuClick, extraActions }: PageHeaderProps) {
@@ -63,8 +65,11 @@ export function PageHeader({ title, onMenuClick, extraActions }: PageHeaderProps
           onClick={dispararAtualizacao}
           className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-[#0D1B4B] shadow-sm hover:bg-slate-50 active:scale-95 transition-all"
         >
-          <RefreshCw className="size-4" aria-hidden />
-          Atualizar
+          <RefreshCw
+            className={['size-4', isRefreshing ? 'animate-spin' : ''].join(' ')}
+            aria-hidden
+          />
+          {isRefreshing ? 'Atualizando' : 'Atualizar'}
         </button>
       </div>
     </header>

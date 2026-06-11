@@ -51,11 +51,32 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
 
 
   describe("First Message - Menu Display", () => {
-    it("deve responder com mensagem de não entendimento quando primeira mensagem é genérica ('oi')", async () => {
+    it("deve mostrar o menu quando primeira mensagem e saudacao ('oi')", async () => {
       const response = await processor.processIncomingMessage("user1", "oi");
 
-      expect(response).toContain("Não entendi sua mensagem");
-      expect(response).toContain("menu");
+      expect(response).toContain("assistente virtual do PROCON");
+      expect(response).toContain("1.");
+      expect(response).not.toContain("Não entendi sua mensagem");
+    });
+
+    it("deve mostrar o menu para saudacoes e pedidos iniciais abertos", async () => {
+      const messages = [
+        "olá",
+        "bom dia",
+        "tenho um problema",
+        "o que você pode fazer para me ajudar"
+      ];
+
+      for (const [index, message] of messages.entries()) {
+        const response = await processor.processIncomingMessage(
+          `user-initial-${index}`,
+          message
+        );
+
+        expect(response).toContain("assistente virtual do PROCON");
+        expect(response).toContain("1.");
+        expect(response).not.toContain("Não entendi sua mensagem");
+      }
     });
 
     it("deve responder com mensagem de não entendimento quando primeira mensagem não dá match", async () => {
@@ -63,6 +84,15 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
 
       expect(response).toContain("Não entendi sua mensagem");
       expect(response).toContain("menu");
+    });
+
+    it("não deve interceptar consulta jurídica específica como menu inicial", async () => {
+      const response = await processor.processIncomingMessage(
+        "user-specific-problem",
+        "tenho um problema com cobrança indevida no cartão"
+      );
+
+      expect(response).not.toContain("assistente virtual do PROCON");
     });
   });
 
@@ -268,6 +298,48 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
       expect(response).toContain("1. Sim");
       expect(response).toContain("2. Nao");
       expect(response).toContain("menu");
+    });
+
+    it("deve usar contexto anterior em pergunta livre de continuidade", async () => {
+      const queries: string[] = [];
+      const fm = new FlowMatcher(flowRegistry);
+      await fm.initialize();
+      const processorWithContext = new MessageProcessorService(
+        new FlowEngine(),
+        fm,
+        new InMemorySessionStore(),
+        new KnowledgeService({
+          search: async (query) => {
+            queries.push(query);
+            return [
+              {
+                score: 2,
+                entry: {
+                  id: "cdc-18",
+                  title: "Art. 18 - Produto com defeito",
+                  body: "Fornecedor responde por vicio de qualidade."
+                }
+              }
+            ];
+          }
+        })
+      );
+
+      await processorWithContext.processIncomingMessage(
+        "user-cdc-context",
+        "Comprei um brinquedo online e veio com defeito"
+      );
+      await processorWithContext.processIncomingMessage(
+        "user-cdc-context",
+        "Entrei em contato com o fornecedor e ele nao quer resolver, o que eu faco?"
+      );
+
+      expect(queries[1]).toContain(
+        "Contexto anterior do consumidor: Comprei um brinquedo online e veio com defeito"
+      );
+      expect(queries[1]).toContain(
+        "Pergunta atual do consumidor: Entrei em contato com o fornecedor"
+      );
     });
   });
 

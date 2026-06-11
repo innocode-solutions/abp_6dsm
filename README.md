@@ -311,12 +311,11 @@ Implementar base de conhecimento, interpretação de linguagem e persistência d
 | US31 | RNF02, RNF03 | Configurar banco de dados | 5 |
 | US32 | RF03, RF06 | Persistir sessões no banco | 3 |
 
-</details>
+<br>
 
 <div align="center">
   <p><i>Gráfico de Burndown do Sprint 2</i></p>
-  <img width="1366" height="766" alt="Sprint 2 - Burndown" src="https://github.com/user-attachments/assets/1c00a756-d64b-4881-b014-557a3af94a34" />
-
+  <img width="1366" height="766" alt="Sprint 1 - Burndown" src="https://github.com/user-attachments/assets/1c00a756-d64b-4881-b014-557a3af94a34" />
 </div>
 
 ---
@@ -329,6 +328,8 @@ Implementar base de conhecimento, interpretação de linguagem e persistência d
 - A equipe conseguiu lidar com tecnologias novas (embeddings, busca vetorial) dentro do prazo da sprint.
 **⚠️ O que pode melhorar**
 - A comunicação decaiu em relação a sprint anterior.
+
+</details>
 
 <details>
 <summary><h3>Sprint 3 — Infraestrutura Cloud e Governança</h3></summary>
@@ -370,6 +371,7 @@ Realizar deploy em nuvem, implementar observabilidade, governança, documentaç�
 | Dev Team        | Igor Fonseca             | [![GitHub Badge](https://img.shields.io/badge/GitHub-111217?style=flat-square&logo=github&logoColor=white)](https://github.com/Igor-Fons) | [![Linkedin Badge](https://img.shields.io/badge/Linkedin-blue?style=flat-square&logo=Linkedin&logoColor=white)](https://www.linkedin.com/in/igor-fonseca-84277226a/) |
 | Dev Team    | Jonatas Filipe Carvalho  | [![GitHub Badge](https://img.shields.io/badge/GitHub-111217?style=flat-square&logo=github&logoColor=white)](https://github.com/filipejonatas) | [![Linkedin Badge](https://img.shields.io/badge/Linkedin-blue?style=flat-square&logo=Linkedin&logoColor=white)](https://www.linkedin.com/in/jonatas-filipe-aa4534165/) |
 | Dev Team        | Samuel Lucas Vieira de Melo | [![GitHub Badge](https://img.shields.io/badge/GitHub-111217?style=flat-square&logo=github&logoColor=white)](https://github.com/SamuelLucasVieira) | [![Linkedin Badge](https://img.shields.io/badge/Linkedin-blue?style=flat-square&logo=Linkedin&logoColor=white)](https://www.linkedin.com/in/samuel-lucas-7a3256144/) |
+| Dev Team        | Vinicius Barbosa Ferndandes | [![GitHub Badge](https://img.shields.io/badge/GitHub-111217?style=flat-square&logo=github&logoColor=white)](https://github.com/Viniciusfernandes2) | [![Linkedin Badge](https://img.shields.io/badge/Linkedin-blue?style=flat-square&logo=Linkedin&logoColor=white)](https://www.linkedin.com/in/vinicius-fernandes-6088a323b/) |
 </div>
 
 ---

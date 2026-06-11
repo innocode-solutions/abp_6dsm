@@ -1,8 +1,14 @@
 import type { ReactNode } from 'react'
 import { useOutletContext } from 'react-router-dom'
 
+export type HeaderRefreshAction = {
+  onRefresh: () => void
+  isRefreshing?: boolean
+} | null
+
 export type MainLayoutOutletContext = {
   setHeaderExtra: (node: ReactNode | null) => void
+  setHeaderRefresh: (action: HeaderRefreshAction) => void
 }
 
 export function useMainLayoutOutlet() {
