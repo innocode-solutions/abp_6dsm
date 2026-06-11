@@ -64,4 +64,42 @@ export const api = {
     const query = userIds.length > 0 ? `?users=${encodeURIComponent(userIds.join(','))}` : ''
     return request<any>(`/api/kpi/dashboard${query}`, {}, token)
   },
+
+  async criarFuncionario(
+    token: string,
+    dados: {
+      nome: string
+      email: string
+      perfil: 'admin' | 'atendente'
+      senha: string
+    }
+  ) {
+    return request<{ dados: any }>('/api/v1/agendamentos/admin/funcionarios', {
+      method: 'POST',
+      body: JSON.stringify(dados),
+    }, token)
+  },
+
+  async editarFuncionario(
+    token: string,
+    id: string,
+    dados: {
+      nome?: string
+      email?: string
+      perfil?: 'admin' | 'atendente'
+      ativo?: boolean
+      senha?: string
+    }
+  ) {
+    return request<{ dados: any }>(`/api/v1/agendamentos/admin/funcionarios/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(dados),
+    }, token)
+  },
+
+  async excluirFuncionario(token: string, id: string) {
+    return request<{ dados: any }>(`/api/v1/agendamentos/admin/funcionarios/${id}`, {
+      method: 'DELETE',
+    }, token)
+  },
 }
