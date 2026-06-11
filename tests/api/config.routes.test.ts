@@ -277,6 +277,105 @@ describe(
         await close();
       }
     });
+
+    it("POST /feriados bloqueante marca horarios disponiveis do dia como bloqueados", async () => {
+      const Feriado = (await import("../../src/api/models/Feriado.model.js"))
+        .default as unknown as {
+        create: (...args: unknown[]) => Promise<unknown>;
+      };
+      const Horario = (await import("../../src/api/models/Horario.model.js"))
+        .default as unknown as {
+        updateMany: (...args: unknown[]) => Promise<{ modifiedCount: number }>;
+      };
+      const Agendamento = (await import("../../src/api/models/Agendamento.model.js"))
+        .default as unknown as {
+        find: (...args: unknown[]) => {
+          select: (...args: unknown[]) => {
+            lean: () => Promise<unknown[]>;
+          };
+        };
+        updateMany: (...args: unknown[]) => Promise<{ modifiedCount: number }>;
+      };
+      const createSpy = vi.spyOn(Feriado, "create").mockResolvedValue({
+        _id: ID,
+        data: "2026-12-25",
+        nome: "Natal",
+        tipo: "nacional",
+        bloqueia_agendamento: true,
+        ativo: true,
+      } as never);
+      const updateManySpy = vi
+        .spyOn(Horario, "updateMany")
+        .mockResolvedValue({ modifiedCount: 3 });
+      const agendamentoFindSpy = vi.spyOn(Agendamento, "find").mockReturnValue({
+        select: () => ({
+          lean: () =>
+            Promise.resolve([
+              {
+                _id: ID,
+                horario_id: ID,
+              },
+            ]),
+        }),
+      } as never);
+      const agendamentoUpdateManySpy = vi
+        .spyOn(Agendamento, "updateMany")
+        .mockResolvedValue({ modifiedCount: 1 });
+
+      const { createApp } = await import("../../src/api/app.js");
+      const app = createApp();
+      const { port, close } = await listenOnce(app);
+
+      try {
+        const res = await fetch(`http://127.0.0.1:${port}${BASE}/feriados`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${adminToken()}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            data: "2026-12-25",
+            nome: "Natal",
+            tipo: "nacional",
+            bloqueia_agendamento: true,
+          }),
+        });
+
+        expect(res.status).toBe(201);
+        expect(createSpy).toHaveBeenCalledWith({
+          data: "2026-12-25",
+          nome: "Natal",
+          tipo: "nacional",
+          bloqueia_agendamento: true,
+        });
+        expect(updateManySpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            inicio_em: {
+              $gte: expect.any(Date),
+              $lt: expect.any(Date),
+            },
+            $or: expect.any(Array),
+          }),
+          {
+            $set: { status: "bloqueado", agendamento_id: null },
+            $unset: { pre_reserva: "" },
+          },
+        );
+        expect(agendamentoFindSpy).toHaveBeenCalledWith({
+          inicio_em: {
+            $gte: expect.any(Date),
+            $lt: expect.any(Date),
+          },
+          status: { $in: ["pendente", "confirmado", "check_in_realizado"] },
+        });
+        expect(agendamentoUpdateManySpy).toHaveBeenCalledWith(
+          { _id: { $in: [ID] } },
+          { $set: { status: "cancelado" } },
+        );
+      } finally {
+        await close();
+      }
+    });
   },
   15_000,
 );

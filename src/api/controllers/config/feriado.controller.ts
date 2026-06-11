@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 
 import Feriado, { FERIADO_TIPOS } from "../../models/Feriado.model.js";
+import { bloquearHorariosDisponiveisPorFeriado } from "../../service/horario.service.js";
 import { AppError } from "../../types/common.types.js";
 import { success } from "../../utils/responseHelper.js";
 import {
@@ -45,6 +46,11 @@ export async function criar(
       tipo: req.body.tipo,
       bloqueia_agendamento: req.body.bloqueia_agendamento ?? true,
     });
+
+    if (feriado.bloqueia_agendamento) {
+      await bloquearHorariosDisponiveisPorFeriado(feriado.data);
+    }
+
     res.status(201).json(success(feriado));
   } catch (error) {
     next(error);

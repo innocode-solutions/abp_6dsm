@@ -2,6 +2,7 @@ import { addDays, addMinutes, getDay, startOfDay } from "date-fns";
 import { formatInTimeZone, fromZonedTime, toZonedTime } from "date-fns-tz";
 import mongoose, { type Types } from "mongoose";
 
+import AgendamentoModel from "../models/Agendamento.model.js";
 import BloqueioModel from "../models/Bloqueio.model.js";
 import FeriadoModel from "../models/Feriado.model.js";
 import HorarioModel, { type HorarioStatus, type IHorario } from "../models/Horario.model.js";
@@ -179,6 +180,58 @@ export interface GerarHorariosResultado {
   horarios_criados: number;
   de: Date;
   ate: Date;
+}
+
+export interface BloquearHorariosPorFeriadoResultado {
+  horarios_bloqueados: number;
+  agendamentos_cancelados: number;
+}
+
+export async function bloquearHorariosDisponiveisPorFeriado(
+  data: string,
+): Promise<BloquearHorariosPorFeriadoResultado> {
+  const inicio = fromZonedTime(`${data}T00:00:00`, TIMEZONE_BR);
+  const fim = addDays(inicio, 1);
+
+  const agendamentosAtivos = await AgendamentoModel.find({
+    inicio_em: { $gte: inicio, $lt: fim },
+    status: { $in: ["pendente", "confirmado", "check_in_realizado"] },
+  })
+    .select("_id horario_id")
+    .lean();
+
+  const agendamentoIds = agendamentosAtivos.map((agendamento) => agendamento._id);
+  const horarioIds = agendamentosAtivos.map((agendamento) => agendamento.horario_id);
+
+  const agendamentosCancelados =
+    agendamentoIds.length > 0
+      ? await AgendamentoModel.updateMany(
+          { _id: { $in: agendamentoIds } },
+          { $set: { status: "cancelado" } },
+        )
+      : { modifiedCount: 0 };
+
+  const resultado = await HorarioModel.updateMany(
+    {
+      inicio_em: { $gte: inicio, $lt: fim },
+      $or: [
+        {
+          status: { $in: ["disponivel", "pre_reservado"] },
+          $or: [{ agendamento_id: null }, { agendamento_id: { $exists: false } }],
+        },
+        { _id: { $in: horarioIds } },
+      ],
+    },
+    {
+      $set: { status: "bloqueado", agendamento_id: null },
+      $unset: { pre_reserva: "" },
+    },
+  );
+
+  return {
+    horarios_bloqueados: resultado.modifiedCount,
+    agendamentos_cancelados: agendamentosCancelados.modifiedCount,
+  };
 }
 
 export async function gerarHorarios(

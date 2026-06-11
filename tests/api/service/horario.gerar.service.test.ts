@@ -6,6 +6,15 @@ const feriadoFindMock = vi.fn();
 const bloqueioFindMock = vi.fn();
 const horarioFindMock = vi.fn();
 const horarioInsertManyMock = vi.fn();
+const agendamentoFindMock = vi.fn();
+const agendamentoUpdateManyMock = vi.fn();
+
+vi.mock("../../../src/api/models/Agendamento.model.js", () => ({
+  default: {
+    find: (...args: unknown[]) => agendamentoFindMock(...args),
+    updateMany: (...args: unknown[]) => agendamentoUpdateManyMock(...args),
+  },
+}));
 
 vi.mock("../../../src/api/models/RegraDisponibilidade.model.js", () => ({
   default: {
