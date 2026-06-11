@@ -173,12 +173,13 @@ export class AgendamentoConversationService implements AgendamentoConversationHa
     body: string
   ): Promise<string | null> {
     const text = body.trim();
+    const decision = this.parseAgendamentoDecision(body);
 
-    if (text === "1") {
+    if (decision === "sim") {
       return this.startConfirmedSession(session.userId);
     }
 
-    if (text === "2") {
+    if (decision === "nao") {
       await this.sessionStore.clear(session.userId);
       return getFlowsAsMenu(flowRegistry).menu;
     }
@@ -195,13 +196,13 @@ export class AgendamentoConversationService implements AgendamentoConversationHa
     session: AgendamentoConversationSession,
     body: string
   ): Promise<string> {
-    const text = body.trim();
+    const decision = this.parseAgendamentoDecision(body);
 
-    if (text === "1") {
+    if (decision === "sim") {
       return this.escolherServico(session, "1");
     }
 
-    if (text === "2") {
+    if (decision === "nao") {
       await this.sessionStore.clear(session.userId);
       return getFlowsAsMenu(flowRegistry).menu;
     }
@@ -369,6 +370,30 @@ export class AgendamentoConversationService implements AgendamentoConversationHa
 
   private isMenuCommand(normalized: string): boolean {
     return normalized === "menu" || normalized === "0";
+  }
+
+  private parseAgendamentoDecision(body: string): "sim" | "nao" | null {
+    const normalized = this.normalize(body);
+
+    if (["1", "sim", "s", "quero", "quero sim"].includes(normalized)) {
+      return "sim";
+    }
+
+    if (
+      [
+        "2",
+        "nao",
+        "n",
+        "nao quero",
+        "nao obrigado",
+        "nao, obrigado",
+        "voltar ao menu"
+      ].includes(normalized)
+    ) {
+      return "nao";
+    }
+
+    return null;
   }
 
   private normalize(text: string): string {
