@@ -9,6 +9,10 @@ import { KnowledgeService } from "../knowledge/knowledge-service";
 import { ISessionStore } from "../sessions/session-store.interface";
 import type { FlowDefinition, FlowOption, FlowResponse } from "../types/flow";
 import {
+  InMemoryConversationContextStore,
+  type IConversationContextStore
+} from "./conversation-context-store";
+import {
   type ConversationMessageContext,
   IMessageProcessor
 } from "./message-processor.interface";
@@ -27,6 +31,19 @@ const HELP_TERMS = new Set([
   "orientacao"
 ]);
 
+const INITIAL_MENU_MESSAGES = new Set([
+  "bom dia",
+  "boa tarde",
+  "boa noite",
+  "tenho um problema",
+  "preciso de ajuda",
+  "o que voce pode fazer",
+  "o que voce pode fazer para me ajudar",
+  "como voce pode me ajudar"
+]);
+
+const GREETING_TERMS = new Set(["oi", "ola"]);
+
 interface DispatchOutcome {
   readonly text: string;
   readonly nlpClassification: FlowNlpClassification | null;
@@ -40,7 +57,8 @@ export class MessageProcessorService implements IMessageProcessor {
     private sessionStore: ISessionStore,
     private knowledgeService?: KnowledgeService,
     private entityRepository?: IEntityExtractionRepository,
-    private agendamentoConversation?: AgendamentoConversationHandler
+    private agendamentoConversation?: AgendamentoConversationHandler,
+    private conversationContextStore: IConversationContextStore = new InMemoryConversationContextStore()
   ) {}
 
   async processIncomingMessage(
@@ -83,6 +101,7 @@ export class MessageProcessorService implements IMessageProcessor {
     if (existingSession) {
       if (body.trim().toLowerCase() === "menu" || body.trim().toLowerCase() === "0") {
         await this.sessionStore.clear(from);
+        await this.conversationContextStore.clear(from);
         return {
           text: getFlowsAsMenu(flowRegistry).menu,
           nlpClassification: null,
@@ -92,6 +111,7 @@ export class MessageProcessorService implements IMessageProcessor {
 
       if (this.isHelpRequest(body)) {
         await this.sessionStore.clear(from);
+        await this.conversationContextStore.clear(from);
         return {
           text: getFlowsAsMenu(flowRegistry).menu,
           nlpClassification: null,
@@ -133,7 +153,7 @@ export class MessageProcessorService implements IMessageProcessor {
       };
     }
 
-    if (this.isHelpRequest(body)) {
+    if (this.isInitialMenuRequest(body)) {
       return {
         text: getFlowsAsMenu(flowRegistry).menu,
         nlpClassification: null,
@@ -158,6 +178,7 @@ export class MessageProcessorService implements IMessageProcessor {
       }
 
       if (matchResult.type === "return_to_menu") {
+        await this.conversationContextStore.clear(from);
         return {
           text: getFlowsAsMenu(flowRegistry).menu,
           nlpClassification,
@@ -194,9 +215,16 @@ export class MessageProcessorService implements IMessageProcessor {
       };
     }
 
-    const knowledgeAnswer = await this.knowledgeService?.findAnswer(body);
+    const knowledgeQuery = await this.buildKnowledgeQuery(from, body);
+    const knowledgeAnswer = await this.knowledgeService?.findAnswer(knowledgeQuery);
 
     if (knowledgeAnswer) {
+      await this.conversationContextStore.save({
+        userId: from,
+        lastUserMessage: body,
+        updatedAt: new Date()
+      });
+
       const schedulingOffer =
         (await this.agendamentoConversation?.offerScheduling?.(from)) ?? "";
 
@@ -237,16 +265,101 @@ export class MessageProcessorService implements IMessageProcessor {
   }
 
   private isHelpRequest(body: string): boolean {
-    const normalized = body
+    const normalized = this.normalizeNavigationText(body);
+    const words = normalized.split(/\s+/).filter((w) => w.length > 0);
+    if (words.length > 4) return false;
+    return words.some((w) => HELP_TERMS.has(w));
+  }
+
+  private isInitialMenuRequest(body: string): boolean {
+    const normalized = this.normalizeNavigationText(body);
+    const words = normalized.split(/\s+/).filter((w) => w.length > 0);
+
+    if (INITIAL_MENU_MESSAGES.has(normalized)) {
+      return true;
+    }
+
+    if (words.length <= 4 && words.some((w) => GREETING_TERMS.has(w))) {
+      return true;
+    }
+
+    return this.isHelpRequest(body);
+  }
+
+  private normalizeNavigationText(body: string): string {
+    return body
       .trim()
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-z\s]/g, "")
+      .replace(/\s+/g, " ")
       .trim();
+  }
+
+  private async buildKnowledgeQuery(userId: string, body: string): Promise<string> {
+    const context = await this.conversationContextStore.get(userId);
+
+    if (!context || !this.isFollowUpQuestion(body)) {
+      return body;
+    }
+
+    return [
+      `Contexto anterior do consumidor: ${context.lastUserMessage}`,
+      `Pergunta atual do consumidor: ${body}`
+    ].join("\n");
+  }
+
+  private isFollowUpQuestion(body: string): boolean {
+    const normalized = this.normalizeNavigationText(body);
+
+    if (!normalized) {
+      return false;
+    }
+
     const words = normalized.split(/\s+/).filter((w) => w.length > 0);
-    if (words.length > 4) return false;
-    return words.some((w) => HELP_TERMS.has(w));
+
+    if (words.length <= 2) {
+      return false;
+    }
+
+    const followUpPatterns = [
+      "e agora",
+      "o que faco",
+      "que faco",
+      "como proceder",
+      "entrei em contato",
+      "nao quer",
+      "nao resolveu",
+      "nao resolver",
+      "se recusou",
+      "continua",
+      "mesmo assim"
+    ];
+
+    if (followUpPatterns.some((pattern) => normalized.includes(pattern))) {
+      return true;
+    }
+
+    const referenceTerms = new Set([
+      "ele",
+      "ela",
+      "eles",
+      "elas",
+      "isso",
+      "esse",
+      "essa",
+      "dessa",
+      "desse",
+      "fornecedor",
+      "loja",
+      "empresa",
+      "vendedor",
+      "resolver",
+      "resolvido"
+    ]);
+
+    return words.some((word) => referenceTerms.has(word));
   }
 
   private formatStep(question: string, options?: FlowOption[]): string {

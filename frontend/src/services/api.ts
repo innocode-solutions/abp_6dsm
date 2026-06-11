@@ -69,11 +69,48 @@ export const api = {
     return request<any>(`/api/kpi/dashboard${query}`, {}, token)
   },
 
+  async criarFuncionario(
+    token: string,
+    dados: {
+      nome: string
+      email: string
+      perfil: 'admin' | 'atendente'
+      senha: string
+    }
+  ) {
+    return request<{ dados: any }>('/api/v1/agendamentos/admin/funcionarios', {
+      method: 'POST',
+      body: JSON.stringify(dados),
+    }, token)
+  },
+
+  async editarFuncionario(
+    token: string,
+    id: string,
+    dados: {
+      nome?: string
+      email?: string
+      perfil?: 'admin' | 'atendente'
+      ativo?: boolean
+      senha?: string
+    }
+  ) {
+    return request<{ dados: any }>(`/api/v1/agendamentos/admin/funcionarios/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(dados),
+    }, token)
+  },
+
+  async excluirFuncionario(token: string, id: string) {
+    return request<{ dados: any }>(`/api/v1/agendamentos/admin/funcionarios/${id}`, {
+      method: 'DELETE',
+    }, token)
+  },
+
   async getBaseConhecimento(token: string) {
     return request<{ dados: any[] }>('/api/v1/conhecimento', {}, token)
   },
 
-  // Novo método para upload de arquivos
   async uploadBaseConhecimento(token: string, file: File) {
     const formData = new FormData()
     formData.append('file', file)

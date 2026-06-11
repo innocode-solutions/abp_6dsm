@@ -9,7 +9,7 @@
   },
   "scripts": {
     "test": "vitest",
-    "start": "node dist/src/server.js",
+    "start": "node dist/src/start.js",
     "test:run": "vitest run",
     "build:bot": "tsc",
     "build:api": "tsc -p tsconfig.api.json",
@@ -24,7 +24,8 @@
     "api:dev": "tsx watch src/api/server.ts",
     "api:build": "npm run build:api",
     "api:start": "node dist/api/server.js",
-    "api:seed-admin": "tsx src/api/scripts/seed-admin.ts"
+    "api:seed-admin": "tsx src/api/scripts/seed-admin.ts",
+    "api:seed-horarios": "tsx src/api/scripts/seed-horarios.ts"
   },
   "repository": {
     "type": "git",

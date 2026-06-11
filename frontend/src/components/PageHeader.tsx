@@ -8,17 +8,33 @@ type PageHeaderProps = {
   title: string
   onMenuClick: () => void
   extraActions?: ReactNode
+  onRefresh?: () => void
+  isRefreshing?: boolean
 }
 
-export function PageHeader({ title, onMenuClick, extraActions }: PageHeaderProps) {
+export function PageHeader({ title, onMenuClick, extraActions, onRefresh, isRefreshing }: PageHeaderProps) {
+  // 1. Trazemos de volta o dispararAtualizacao
   const { dataSelecionada, setDataSelecionada, dispararAtualizacao } = useHeader()
   
-  const dataLabel = format(dataSelecionada, "dd/MM/yyyy", { locale: ptBR })
+  // 2. Trazemos de volta a proteção contra o "Invalid time value"
+  const dataSegura = dataSelecionada instanceof Date && !isNaN(dataSelecionada.getTime()) 
+    ? dataSelecionada 
+    : new Date()
+
+  const dataLabel = format(dataSegura, "dd/MM/yyyy", { locale: ptBR })
 
   const handleDateChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.value) {
-      // O 'T12:00:00' evita a quebra de fuso horário que altera o dia
+    if (e.target.value && setDataSelecionada) {
       setDataSelecionada(new Date(e.target.value + 'T12:00:00'))
+    }
+  }
+
+  // 3. Função inteligente que junta a lógica da develop com a sua
+  const handleRefreshClick = () => {
+    if (onRefresh) {
+      onRefresh() // Se a página passar uma função específica, usa ela
+    } else if (dispararAtualizacao) {
+      dispararAtualizacao() // Se não, usa a atualização global do contexto
     }
   }
 
@@ -46,7 +62,7 @@ export function PageHeader({ title, onMenuClick, extraActions }: PageHeaderProps
             type="date" 
             className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
             onChange={handleDateChange}
-            value={format(dataSelecionada, 'yyyy-MM-dd')}
+            value={format(dataSegura, 'yyyy-MM-dd')}
           />
           <button
             type="button"
@@ -60,11 +76,20 @@ export function PageHeader({ title, onMenuClick, extraActions }: PageHeaderProps
 
         <button
           type="button"
-          onClick={dispararAtualizacao}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-[#0D1B4B] shadow-sm hover:bg-slate-50 active:scale-95 transition-all"
+          onClick={handleRefreshClick}
+          // Tiramos o !onRefresh daqui para o botão não ficar desativado nas páginas
+          // que usam o contexto global. Ele só desativa se estiver carregando.
+          disabled={isRefreshing}
+          className={[
+            'inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-[#0D1B4B] shadow-sm transition',
+            isRefreshing ? 'cursor-not-allowed opacity-60' : 'hover:bg-slate-50',
+          ].join(' ')}
         >
-          <RefreshCw className="size-4" aria-hidden />
-          Atualizar
+          <RefreshCw
+            className={['size-4', isRefreshing ? 'animate-spin' : ''].join(' ')}
+            aria-hidden
+          />
+          {isRefreshing ? 'Atualizando' : 'Atualizar'}
         </button>
       </div>
     </header>

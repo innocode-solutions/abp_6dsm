@@ -155,11 +155,49 @@ describe("AgendamentoConversationService", () => {
     expect(api.listarServicos).toHaveBeenCalledOnce();
   });
 
+  it("inicia agendamento quando usuario responde sim por texto", async () => {
+    const userId = "user-rag-offer-text";
+
+    await service.offerScheduling(userId);
+    const horarios = await service.handle(userId, "sim");
+
+    expect(horarios).toContain("Horarios disponiveis");
+    expect(horarios).toContain("03/06/2026 as 09:00");
+    expect(api.listarServicos).toHaveBeenCalledOnce();
+  });
+
   it("retorna ao menu quando usuario recusa agendamento presencial", async () => {
     const userId = "user-rag-menu";
 
     await service.offerScheduling(userId);
     const response = await service.handle(userId, "2");
+
+    expect(response).toContain("ProconBot");
+    expect(response).toContain("1.");
+  });
+
+  it("retorna ao menu quando usuario responde nao por texto", async () => {
+    const userId = "user-rag-menu-text";
+
+    await service.offerScheduling(userId);
+    const response = await service.handle(userId, "não");
+
+    expect(response).toContain("ProconBot");
+    expect(response).toContain("1.");
+  });
+
+  it("aceita sim e nao por texto na confirmacao de agendamento direto", async () => {
+    const horariosUserId = "user-direct-sim";
+
+    await service.handle(horariosUserId, "quero agendar");
+    const horarios = await service.handle(horariosUserId, "Sim");
+
+    expect(horarios).toContain("Horarios disponiveis");
+
+    const menuUserId = "user-direct-nao";
+
+    await service.handle(menuUserId, "quero agendar");
+    const response = await service.handle(menuUserId, "nao");
 
     expect(response).toContain("ProconBot");
     expect(response).toContain("1.");
