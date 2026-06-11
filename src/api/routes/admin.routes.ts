@@ -1,6 +1,10 @@
 import { Router } from "express";
 
 import { listarAgenda } from "../controllers/admin/agenda.controller.js";
+import {
+  cancelarAgendamentoAdmin,
+  criarAgendamentoAdmin,
+} from "../controllers/admin/agendamentoAdmin.controller.js";
 import { criarBloqueio, removerBloqueio } from "../controllers/admin/bloqueio.controller.js";
 import {
   concluirAtendimento,
@@ -29,12 +33,14 @@ router.use(adminLimiter);
 router.use(authenticateAdmin);
 
 router.get("/agenda", requirePerfil(...LEITURA), listarAgenda);
+router.post("/agendamentos", requirePerfil(...OPERACAO), criarAgendamentoAdmin);
 router.get("/horarios", requirePerfil(...LEITURA), listarHorariosAdmin);
 router.post("/horarios/gerar", requirePerfil(...GESTAO), gerarHorarios);
 router.post("/bloqueios", requirePerfil(...GESTAO), criarBloqueio);
 router.delete("/bloqueios/:id", requirePerfil(...GESTAO), removerBloqueio);
 router.get("/conversas", requirePerfil(...LEITURA), listarConversas);
 router.get("/conversas/:userId", requirePerfil(...LEITURA), obterHistoricoConversa);
+router.post("/:codigo/cancelar", requirePerfil(...OPERACAO), cancelarAgendamentoAdmin);
 router.post("/:codigo/check-in", requirePerfil(...OPERACAO), realizarCheckIn);
 router.post("/:codigo/nao-compareceu", requirePerfil(...OPERACAO), marcarNaoCompareceu);
 router.post("/:codigo/concluir", requirePerfil(...OPERACAO), concluirAtendimento);

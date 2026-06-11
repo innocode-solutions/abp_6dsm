@@ -18,6 +18,7 @@ const MAX_REMARCACOES = 2;
 
 const STATUS_ATIVOS = ["pendente", "confirmado", "check_in_realizado"] as const;
 const STATUS_CANCELAVEIS = ["pendente", "confirmado"] as const;
+const STATUS_CANCELAVEIS_ADMIN = ["pendente", "confirmado", "check_in_realizado"] as const;
 const STATUS_REMARCAVEL = ["pendente", "confirmado"] as const;
 
 function toObjectId(id: string | Types.ObjectId): Types.ObjectId {
@@ -208,6 +209,49 @@ export async function cancelarAgendamento(
       status: "cancelado",
       motivo: input.motivo,
       conversa_id: input.conversa_id,
+    },
+  });
+
+  return agendamento;
+}
+
+export interface CancelarAgendamentoAdminInput {
+  codigo: string;
+  motivo: string;
+  cancelado_por: ILogAuditoriaExecutadoPor;
+}
+
+export async function cancelarAgendamentoAdmin(
+  input: CancelarAgendamentoAdminInput,
+): Promise<IAgendamento> {
+  const agendamento = await AgendamentoModel.findOne({ codigo_agendamento: input.codigo });
+  if (!agendamento) {
+    throw new AppError("AGENDAMENTO_NAO_ENCONTRADO", 404);
+  }
+
+  if (
+    !STATUS_CANCELAVEIS_ADMIN.includes(
+      agendamento.status as (typeof STATUS_CANCELAVEIS_ADMIN)[number],
+    )
+  ) {
+    throw new AppError("AGENDAMENTO_NAO_CANCELAVEL", 409);
+  }
+
+  const dadosAnteriores = agendamento.toObject();
+
+  agendamento.status = "cancelado";
+  await agendamento.save();
+  await liberarHorario(agendamento.horario_id);
+
+  await registrarAuditoria({
+    entidade: "Agendamento",
+    entidade_id: agendamento.codigo_agendamento,
+    acao: "CANCELAR_ADMIN",
+    executado_por: input.cancelado_por,
+    dados_anteriores: dadosAnteriores,
+    dados_novos: {
+      status: "cancelado",
+      motivo: input.motivo,
     },
   });
 

@@ -1,5 +1,37 @@
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '')
 
+type CreateFeriadoPayload = {
+  data: string
+  nome: string
+  tipo: 'nacional' | 'estadual' | 'municipal'
+  bloqueia_agendamento?: boolean
+}
+
+export type Feriado = {
+  _id?: string
+  id?: string
+  data: string
+  nome: string
+  tipo: 'nacional' | 'estadual' | 'municipal'
+  bloqueia_agendamento: boolean
+  ativo?: boolean
+}
+
+export type Servico = {
+  _id: string
+  nome: string
+  duracao_minutos?: number
+}
+
+export type HorarioDisponivel = {
+  _id: string
+  funcionario_id: string
+  servico_id: string
+  inicio_em: string
+  fim_em: string
+  status: string
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -50,6 +82,28 @@ export const api = {
   async getAgenda(token: string, data?: string) {
     const query = data ? `?data=${encodeURIComponent(data)}` : ''
     return request<{ dados: any[] }>(`/api/v1/agendamentos/admin/agenda${query}`, {}, token)
+  },
+
+  async getFeriados(token: string) {
+    return request<{ dados: Feriado[] }>('/api/v1/agendamentos/admin/feriados', {}, token)
+  },
+
+  async getServicos(token: string) {
+    return request<{ dados: Servico[] }>('/api/v1/agendamentos/admin/servicos', {}, token)
+  },
+
+  async getHorariosDisponiveisAdmin(token: string, servicoId: string, data: string) {
+    const query = new URLSearchParams({
+      servico_id: servicoId,
+      status: 'disponivel',
+      de: data,
+      ate: data,
+    })
+    return request<{ dados: HorarioDisponivel[] }>(
+      `/api/v1/agendamentos/admin/horarios?${query.toString()}`,
+      {},
+      token
+    )
   },
 
   async getFuncionarios(token: string) {
@@ -131,6 +185,43 @@ export const api = {
       {
         method: 'DELETE',
       }, 
+      token
+    )
+  },
+
+  async createFeriado(token: string, payload: CreateFeriadoPayload) {
+    return request<{ dados: any }>('/api/v1/agendamentos/admin/feriados', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, token)
+  },
+
+  async criarAgendamentoAdmin(
+    token: string,
+    payload: {
+      horario_id: string
+      cidadao: { nome: string; cpf: string }
+      assunto: string
+      descricao: string
+    }
+  ) {
+    return request<{ dados: { codigo_agendamento: string; status: string } }>(
+      '/api/v1/agendamentos/admin/agendamentos',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      token
+    )
+  },
+
+  async cancelarAgendamentoAdmin(token: string, codigo: string, motivo: string) {
+    return request<{ dados: { codigo_agendamento: string; status: string } }>(
+      `/api/v1/agendamentos/admin/${encodeURIComponent(codigo)}/cancelar`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ motivo }),
+      },
       token
     )
   },
