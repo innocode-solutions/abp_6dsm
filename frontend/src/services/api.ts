@@ -6,7 +6,11 @@ async function request<T>(
   token?: string | null
 ): Promise<T> {
   const headers = new Headers(options.headers)
-  headers.set('Content-Type', 'application/json')
+  
+  // Ajuste: Só define como JSON se o corpo da requisição NÃO for um FormData (arquivo)
+  if (!(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json')
+  }
   
   if (token) {
     headers.set('Authorization', `Bearer ${token}`)
@@ -63,5 +67,34 @@ export const api = {
   async getKpiDashboard(token: string, userIds: string[]) {
     const query = userIds.length > 0 ? `?users=${encodeURIComponent(userIds.join(','))}` : ''
     return request<any>(`/api/kpi/dashboard${query}`, {}, token)
+  },
+
+  async getBaseConhecimento(token: string) {
+    return request<{ dados: any[] }>('/api/v1/conhecimento', {}, token)
+  },
+
+  // Novo método para upload de arquivos
+  async uploadBaseConhecimento(token: string, file: File) {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    return request<{ mensagem: string; arquivo: string }>(
+      '/api/v1/conhecimento/upload',
+      {
+        method: 'POST',
+        body: formData,
+      },
+      token
+    )
+  },
+
+  async deleteBaseConhecimento(token: string, filename: string) {
+    return request<{ mensagem: string }>(
+      `/api/v1/conhecimento/${encodeURIComponent(filename)}`, 
+      {
+        method: 'DELETE',
+      }, 
+      token
+    )
   },
 }
