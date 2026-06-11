@@ -4,7 +4,7 @@ import { Sidebar } from './Sidebar'
 import { PageHeader } from './PageHeader'
 import { AppFooter } from './AppFooter'
 import { useLayoutShell } from '../hooks/useLayoutShell'
-import type { MainLayoutOutletContext } from '../hooks/useMainLayoutOutlet'
+import type { HeaderRefreshAction, MainLayoutOutletContext } from '../hooks/useMainLayoutOutlet'
 
 const titles: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -22,10 +22,11 @@ export function Layout() {
   const { sidebarOpen, setSidebarOpen, toggleSidebar } = useLayoutShell()
   const title = titles[pathname] ?? 'Painel'
   const [headerExtra, setHeaderExtra] = useState<ReactNode>(null)
+  const [headerRefresh, setHeaderRefresh] = useState<HeaderRefreshAction>(null)
 
   const outletCtx = useMemo<MainLayoutOutletContext>(
-    () => ({ setHeaderExtra }),
-    [setHeaderExtra],
+    () => ({ setHeaderExtra, setHeaderRefresh }),
+    [setHeaderExtra, setHeaderRefresh],
   )
 
   return (
@@ -53,6 +54,8 @@ export function Layout() {
           title={title}
           onMenuClick={toggleSidebar}
           extraActions={headerExtra}
+          onRefresh={headerRefresh?.onRefresh}
+          isRefreshing={headerRefresh?.isRefreshing}
         />
         <main className="flex flex-1 flex-col px-4 pb-4 pt-2 lg:px-8">
           <div className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col">

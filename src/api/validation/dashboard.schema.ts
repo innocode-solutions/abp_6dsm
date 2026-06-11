@@ -6,13 +6,13 @@ import { z } from "zod";
  * Regras de sanitização:
  *  - Deve ser string não-vazia
  *  - Máximo de 200 caracteres (evita payload gigante)
- *  - Apenas caracteres alfanuméricos, +, @, vírgula, hífen e underscore
+ *  - Apenas caracteres alfanuméricos, +, @, ponto, vírgula, hífen e underscore
  *    → bloqueia injeção de operadores MongoDB ($where, $gt…) e caracteres de controle
  *  - Após split, cada userId deve ter entre 1 e 50 caracteres
  *  - Limite de 20 usuários por requisição
  */
-const USER_ID_REGEX = /^[a-zA-Z0-9+@,_\-]+$/;
-const USER_ITEM_REGEX = /^[a-zA-Z0-9+@_\-]{1,50}$/;
+const USER_ID_REGEX = /^[a-zA-Z0-9+@.,_\-]+$/;
+const USER_ITEM_REGEX = /^[a-zA-Z0-9+@._\-]{1,50}$/;
 
 export const usersParamSchema = z
   .string({

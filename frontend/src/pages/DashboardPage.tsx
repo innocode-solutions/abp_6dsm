@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -17,180 +17,454 @@ import {
 } from 'recharts'
 import {
   Calendar,
-  HelpCircle,
+  Clock3,
   MessageCircle,
   MessageSquare,
   Users,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { useMainLayoutOutlet } from '../hooks/useMainLayoutOutlet'
 import { api } from '../services/api'
 
-const metricIcons: Record<string, typeof MessageCircle> = {
+type MetricId = 'conversas' | 'usuarios' | 'mensagens' | 'agendamentos' | 'atualizacao'
+
+type DashboardMetric = {
+  id: MetricId
+  titulo: string
+  valor: string
+  tendencia: string
+  tendenciaPositiva: boolean
+}
+
+type ApiAppointment = {
+  _id?: string
+  id?: string
+  inicio_em?: string | Date
+  fim_em?: string | Date
+  status?: string
+  assunto?: string
+  descricao?: string
+  servico_id?: {
+    nome?: string
+  } | string | null
+}
+
+type ApiConversation = {
+  id?: string
+  nome?: string
+  identificador?: string
+}
+
+type KpiByUser = {
+  userId: string
+  count: number
+}
+
+type DashboardKpi = {
+  totalMessages: number
+  totalByUser: KpiByUser[]
+  totalExtractions: number
+  lastUpdated: string | null
+}
+
+type DayBucket = {
+  isoDate: string
+  label: string
+}
+
+const KPI_MAX_USERS_PER_REQUEST = 20
+const KPI_MAX_USERS_QUERY_LENGTH = 200
+
+const CONFIRMED_STATUSES = new Set([
+  'confirmado',
+  'check_in_realizado',
+  'em_atendimento',
+  'concluido',
+])
+
+const PENDING_STATUSES = new Set(['pendente', 'reagendado', 'remarcado'])
+const CANCELED_STATUSES = new Set(['cancelado', 'expirado', 'nao_compareceu'])
+const ACTIVE_FUTURE_STATUSES = new Set([
+  'pendente',
+  'confirmado',
+  'check_in_realizado',
+  'em_atendimento',
+  'reagendado',
+  'remarcado',
+])
+
+const TOPIC_COLORS = ['#0D1B4B', '#CC2229', '#2563EB', '#16A34A', '#9CA3AF']
+
+const metricIcons: Record<MetricId, typeof MessageCircle> = {
   conversas: MessageCircle,
   usuarios: Users,
   mensagens: MessageSquare,
   agendamentos: Calendar,
-  naoEntendidas: HelpCircle,
+  atualizacao: Clock3,
+}
+
+const numberFormatter = new Intl.NumberFormat('pt-BR')
+
+function createEmptyKpi(): DashboardKpi {
+  return {
+    totalMessages: 0,
+    totalByUser: [],
+    totalExtractions: 0,
+    lastUpdated: null,
+  }
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+function toDate(value: unknown): Date | null {
+  if (!value) return null
+  const date = value instanceof Date ? value : new Date(String(value))
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function toDateKey(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function toDayLabel(date: Date): string {
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  return `${day}/${month}`
+}
+
+function normalizeStatus(status: unknown): string {
+  return isNonEmptyString(status) ? status.trim().toLowerCase() : ''
+}
+
+function getAppointmentTopic(appointment: ApiAppointment): string {
+  if (
+    appointment.servico_id &&
+    typeof appointment.servico_id === 'object' &&
+    isNonEmptyString(appointment.servico_id.nome)
+  ) {
+    return appointment.servico_id.nome.trim()
+  }
+
+  if (isNonEmptyString(appointment.assunto)) {
+    return appointment.assunto.trim()
+  }
+
+  return 'Geral'
+}
+
+function getConversationId(conversation: ApiConversation): string | null {
+  if (isNonEmptyString(conversation.id)) return conversation.id.trim()
+  if (isNonEmptyString(conversation.identificador)) return conversation.identificador.trim()
+  return null
+}
+
+function uniqueValues(values: (string | null)[]): string[] {
+  return Array.from(new Set(values.filter(isNonEmptyString)))
+}
+
+function chunkKpiUserIds(userIds: string[]): string[][] {
+  const chunks: string[][] = []
+  let currentChunk: string[] = []
+  let currentQueryLength = 0
+
+  userIds.forEach((userId) => {
+    const nextQueryLength =
+      currentChunk.length === 0
+        ? userId.length
+        : currentQueryLength + 1 + userId.length
+    const exceedsUserLimit = currentChunk.length >= KPI_MAX_USERS_PER_REQUEST
+    const exceedsQueryLimit = nextQueryLength > KPI_MAX_USERS_QUERY_LENGTH
+
+    if (currentChunk.length > 0 && (exceedsUserLimit || exceedsQueryLimit)) {
+      chunks.push(currentChunk)
+      currentChunk = [userId]
+      currentQueryLength = userId.length
+      return
+    }
+
+    currentChunk.push(userId)
+    currentQueryLength = nextQueryLength
+  })
+
+  if (currentChunk.length > 0) {
+    chunks.push(currentChunk)
+  }
+
+  return chunks
+}
+
+function normalizeKpi(raw: Partial<DashboardKpi> | null | undefined): DashboardKpi {
+  if (!raw) return createEmptyKpi()
+
+  return {
+    totalMessages: Number(raw.totalMessages) || 0,
+    totalByUser: Array.isArray(raw.totalByUser)
+      ? raw.totalByUser.map((item) => ({
+          userId: String(item.userId),
+          count: Number(item.count) || 0,
+        }))
+      : [],
+    totalExtractions: Number(raw.totalExtractions) || 0,
+    lastUpdated: isNonEmptyString(raw.lastUpdated) ? raw.lastUpdated : null,
+  }
+}
+
+function mergeKpis(results: DashboardKpi[]): DashboardKpi {
+  if (results.length === 0) return createEmptyKpi()
+
+  const totalByUser = results.flatMap((result) => result.totalByUser)
+  const lastUpdated = results
+    .map((result) => toDate(result.lastUpdated))
+    .filter((date): date is Date => date !== null)
+    .sort((a, b) => b.getTime() - a.getTime())[0]
+
+  return {
+    totalMessages: results.reduce((sum, result) => sum + result.totalMessages, 0),
+    totalByUser,
+    totalExtractions: results.reduce((sum, result) => sum + result.totalExtractions, 0),
+    lastUpdated: lastUpdated ? lastUpdated.toISOString() : null,
+  }
+}
+
+function formatNumber(value: number): string {
+  return numberFormatter.format(value)
+}
+
+function formatLastUpdated(value: string | null): string {
+  const date = toDate(value)
+
+  if (!date) {
+    return 'Sem dados'
+  }
+
+  return date.toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Falha ao carregar painel'
 }
 
 export function DashboardPage() {
   const { token } = useAuth()
+  const { setHeaderRefresh } = useMainLayoutOutlet()
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  
-  const [appointments, setAppointments] = useState<any[]>([])
-  const [conversations, setConversations] = useState<any[]>([])
-  const [kpiData, setKpiData] = useState<any>(null)
+  const [appointments, setAppointments] = useState<ApiAppointment[]>([])
+  const [conversations, setConversations] = useState<ApiConversation[]>([])
+  const [kpiData, setKpiData] = useState<DashboardKpi>(() => createEmptyKpi())
+  const [refreshRequest, setRefreshRequest] = useState(0)
+  const [referenceDate, setReferenceDate] = useState(() => new Date())
 
-  useEffect(() => {
-    if (!token) return
-
-    async function loadDashboard() {
-      try {
-        setLoading(true)
-        setError(null)
-        
-        // 1. Fetch appointments (all slots)
-        const agendaRes = await api.getAgenda(token!)
-        const agenda = agendaRes.dados || []
-        setAppointments(agenda)
-
-        // 2. Fetch conversations to count unique WhatsApp contacts
-        const convRes = await api.getConversas(token!)
-        const convs = convRes.dados || []
-        setConversations(convs)
-
-        // 3. Fetch operators to fetch general KPI counts
-        const funcRes = await api.getFuncionarios(token!)
-        const funcs = funcRes.dados || []
-        const userIds = funcs.map((f: any) => f._id || f.id)
-
-        if (userIds.length > 0) {
-          const kpi = await api.getKpiDashboard(token!, userIds)
-          setKpiData(kpi)
-        }
-      } catch (err: any) {
-        setError(err.message || 'Falha ao carregar painel')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadDashboard()
-  }, [token])
-
-  // Generate last 7 days of labels and ISO prefixes
-  const last7Days = useMemo(() => {
-    return Array.from({ length: 7 }).map((_, i) => {
-      const d = new Date()
-      d.setDate(d.getDate() - (6 - i))
-      const year = d.getFullYear()
-      const month = String(d.getMonth() + 1).padStart(2, '0')
-      const day = String(d.getDate()).padStart(2, '0')
-      return {
-        isoDate: `${year}-${month}-${day}`,
-        label: `${day}/${month}`,
-      }
-    })
+  const refreshDashboard = useCallback(() => {
+    setRefreshRequest((current) => current + 1)
   }, [])
 
-  // Calculate atendimentosPorDia from appointments
+  useEffect(() => {
+    let active = true
+    const authToken = token
+    const isManualRefresh = refreshRequest > 0
+
+    if (!authToken) {
+      setLoading(false)
+      setRefreshing(false)
+      return () => {
+        active = false
+      }
+    }
+
+    async function loadDashboard(validToken: string) {
+      try {
+        if (isManualRefresh) {
+          setRefreshing(true)
+        } else {
+          setLoading(true)
+        }
+        setError(null)
+
+        const [agendaRes, conversasRes] = await Promise.all([
+          api.getAgenda(validToken),
+          api.getConversas(validToken),
+        ])
+
+        const agenda = Array.isArray(agendaRes.dados) ? agendaRes.dados : []
+        const conversas = Array.isArray(conversasRes.dados) ? conversasRes.dados : []
+        const conversationIds = uniqueValues(conversas.map(getConversationId))
+        const kpiBatches = chunkKpiUserIds(conversationIds)
+
+        const kpiResults = await Promise.all(
+          kpiBatches.map(async (ids) => normalizeKpi(await api.getKpiDashboard(validToken, ids))),
+        )
+
+        if (!active) return
+
+        setAppointments(agenda)
+        setConversations(conversas)
+        setKpiData(mergeKpis(kpiResults))
+        setReferenceDate(new Date())
+      } catch (err) {
+        if (!active) return
+        setError(getErrorMessage(err))
+      } finally {
+        if (active) {
+          setLoading(false)
+          setRefreshing(false)
+        }
+      }
+    }
+
+    loadDashboard(authToken)
+
+    return () => {
+      active = false
+    }
+  }, [token, refreshRequest])
+
+  useEffect(() => {
+    if (!token) {
+      setHeaderRefresh(null)
+      return () => setHeaderRefresh(null)
+    }
+
+    setHeaderRefresh({
+      onRefresh: refreshDashboard,
+      isRefreshing: refreshing,
+    })
+
+    return () => setHeaderRefresh(null)
+  }, [refreshDashboard, refreshing, setHeaderRefresh, token])
+
+  const last7Days = useMemo<DayBucket[]>(() => {
+    return Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(referenceDate)
+      date.setHours(0, 0, 0, 0)
+      date.setDate(date.getDate() - (6 - index))
+
+      return {
+        isoDate: toDateKey(date),
+        label: toDayLabel(date),
+      }
+    })
+  }, [referenceDate])
+
   const atendimentosPorDia = useMemo(() => {
     return last7Days.map((day) => {
-      const count = appointments.filter((a) => {
-        if (!a.inicio_em) return false
-        const aDate = new Date(a.inicio_em).toISOString().split('T')[0]
-        return aDate === day.isoDate
+      const atendimentos = appointments.filter((appointment) => {
+        const date = toDate(appointment.inicio_em)
+        const status = normalizeStatus(appointment.status)
+
+        return (
+          date !== null &&
+          toDateKey(date) === day.isoDate &&
+          !CANCELED_STATUSES.has(status)
+        )
       }).length
+
       return {
         dia: day.label,
-        atendimentos: count,
+        atendimentos,
       }
     })
   }, [appointments, last7Days])
 
-  // Calculate agendamentosStackedPorDia from appointments
   const agendamentosStackedPorDia = useMemo(() => {
     return last7Days.map((day) => {
-      const dayApps = appointments.filter((a) => {
-        if (!a.inicio_em) return false
-        const aDate = new Date(a.inicio_em).toISOString().split('T')[0]
-        return aDate === day.isoDate
+      const dayAppointments = appointments.filter((appointment) => {
+        const date = toDate(appointment.inicio_em)
+        return date !== null && toDateKey(date) === day.isoDate
       })
-      const confirmados = dayApps.filter((a) =>
-        ['confirmado', 'check_in_realizado', 'em_atendimento', 'concluido'].includes(a.status)
-      ).length
-      const pendentes = dayApps.filter((a) => a.status === 'pendente').length
-      const cancelados = dayApps.filter((a) => ['cancelado', 'expirado'].includes(a.status)).length
 
       return {
         dia: day.label,
-        confirmados,
-        pendentes,
-        cancelados,
+        confirmados: dayAppointments.filter((appointment) =>
+          CONFIRMED_STATUSES.has(normalizeStatus(appointment.status)),
+        ).length,
+        pendentes: dayAppointments.filter((appointment) =>
+          PENDING_STATUSES.has(normalizeStatus(appointment.status)),
+        ).length,
+        cancelados: dayAppointments.filter((appointment) =>
+          CANCELED_STATUSES.has(normalizeStatus(appointment.status)),
+        ).length,
       }
     })
   }, [appointments, last7Days])
 
-  // Calculate assuntosDonut from appointments
   const assuntosDonut = useMemo(() => {
-    const counts: Record<string, number> = {}
-    appointments.forEach((a) => {
-      const name = a.servico_id?.nome || 'Geral'
-      counts[name] = (counts[name] || 0) + 1
-    })
-    const total = appointments.length || 1
-    const entries = Object.entries(counts)
+    const counts = appointments.reduce<Record<string, number>>((acc, appointment) => {
+      const topic = getAppointmentTopic(appointment)
+      acc[topic] = (acc[topic] ?? 0) + 1
+      return acc
+    }, {})
+
+    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1])
+
     if (entries.length === 0) {
-      return [{ name: 'Sem atendimentos', value: 100, color: '#9CA3AF' }]
+      return [{ name: 'Sem agendamentos', value: 100, color: '#9CA3AF' }]
     }
-    const colors = ['#0D1B4B', '#CC2229', '#2563EB', '#93C5FD', '#9CA3AF']
-    return entries.map(([name, count], index) => ({
+
+    const visibleEntries = entries.slice(0, 4)
+    const remainingTotal = entries.slice(4).reduce((sum, [, count]) => sum + count, 0)
+    const groupedEntries =
+      remainingTotal > 0 ? [...visibleEntries, ['Outros', remainingTotal] as [string, number]] : visibleEntries
+    const total = groupedEntries.reduce((sum, [, count]) => sum + count, 0)
+
+    return groupedEntries.map(([name, count], index) => ({
       name,
       value: Math.round((count / total) * 100),
-      color: colors[index % colors.length],
+      color: TOPIC_COLORS[index % TOPIC_COLORS.length],
     }))
   }, [appointments])
 
-  // Compute metrics cards
-  const metrics = useMemo(() => {
-    const futureCount = appointments.filter((a) => new Date(a.inicio_em) > new Date()).length
-    const totalMsgs = kpiData?.totalMessages || 0
-    const totalUsers = conversations.length || 0
+  const metrics = useMemo<DashboardMetric[]>(() => {
+    const now = new Date()
+    const futureAppointments = appointments.filter((appointment) => {
+      const date = toDate(appointment.inicio_em)
+      const status = normalizeStatus(appointment.status)
+      return date !== null && date > now && ACTIVE_FUTURE_STATUSES.has(status)
+    }).length
+    const uniqueContacts = uniqueValues(conversations.map(getConversationId)).length
 
     return [
       {
         id: 'conversas',
         titulo: 'Conversas totais',
-        valor: String(totalUsers),
-        tendencia: 'Ativas no WhatsApp',
+        valor: formatNumber(conversations.length),
+        tendencia: 'Registradas no WhatsApp',
         tendenciaPositiva: true,
       },
       {
         id: 'usuarios',
         titulo: 'Usuários únicos',
-        valor: String(totalUsers),
-        tendencia: 'Histórico acumulado',
+        valor: formatNumber(uniqueContacts),
+        tendencia: 'Contatos identificados',
         tendenciaPositiva: true,
       },
       {
         id: 'mensagens',
         titulo: 'Mensagens trocadas',
-        valor: String(totalMsgs),
-        tendencia: 'Bot & Operadores',
+        valor: formatNumber(kpiData.totalMessages),
+        tendencia: 'Entrada e saída do bot',
         tendenciaPositiva: true,
       },
       {
         id: 'agendamentos',
         titulo: 'Agendamentos futuros',
-        valor: String(futureCount),
-        tendencia: 'Confirmados/Pendentes',
+        valor: formatNumber(futureAppointments),
+        tendencia: 'Pendentes ou confirmados',
         tendenciaPositiva: true,
       },
       {
-        id: 'naoEntendidas',
+        id: 'atualizacao',
         titulo: 'Última atualização',
-        valor: kpiData?.lastUpdated ? new Date(kpiData.lastUpdated).toLocaleTimeString('pt-BR') : 'Sem dados',
+        valor: formatLastUpdated(kpiData.lastUpdated),
         tendencia: 'Sincronizado da API',
         tendenciaPositiva: false,
       },
@@ -207,7 +481,7 @@ export function DashboardPage() {
 
   if (error) {
     return (
-      <div className="flex flex-1 items-center justify-center p-6 text-[#CC2229] font-medium bg-red-50 border border-red-100 rounded-xl">
+      <div className="flex flex-1 items-center justify-center rounded-xl border border-red-100 bg-red-50 p-6 font-medium text-[#CC2229]">
         {error}
       </div>
     )
@@ -216,33 +490,34 @@ export function DashboardPage() {
   return (
     <div className="flex flex-1 flex-col gap-6 pb-4">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        {metrics.map((m) => {
-          const Icon = metricIcons[m.id] ?? MessageCircle
-          const danger = m.id === 'naoEntendidas'
+        {metrics.map((metric) => {
+          const Icon = metricIcons[metric.id]
+          const isUpdateCard = metric.id === 'atualizacao'
+
           return (
             <article
-              key={m.id}
+              key={metric.id}
               className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm"
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <p className="text-xs font-medium text-slate-500">{m.titulo}</p>
+                  <p className="text-xs font-medium text-slate-500">{metric.titulo}</p>
                   <p className="mt-2 text-2xl font-bold tracking-tight text-[#0D1B4B]">
-                    {m.valor}
+                    {metric.valor}
                   </p>
                   <p
                     className={[
                       'mt-1 text-xs font-semibold',
-                      m.tendenciaPositiva ? 'text-emerald-600' : 'text-slate-500',
+                      metric.tendenciaPositiva ? 'text-emerald-600' : 'text-slate-500',
                     ].join(' ')}
                   >
-                    {m.tendencia}
+                    {metric.tendencia}
                   </p>
                 </div>
                 <div
                   className={[
                     'flex h-11 w-11 items-center justify-center rounded-xl',
-                    danger ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-[#2563EB]',
+                    isUpdateCard ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-[#2563EB]',
                   ].join(' ')}
                 >
                   <Icon className="size-5" aria-hidden />
@@ -312,16 +587,16 @@ export function DashboardPage() {
               </ResponsiveContainer>
             </div>
             <ul className="flex flex-col justify-center gap-2 text-xs lg:w-[42%]">
-              {assuntosDonut.map((s) => (
-                <li key={s.name} className="flex items-center justify-between gap-2">
+              {assuntosDonut.map((subject) => (
+                <li key={subject.name} className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-2 text-slate-600">
                     <span
                       className="inline-block size-2.5 rounded-full"
-                      style={{ backgroundColor: s.color }}
+                      style={{ backgroundColor: subject.color }}
                     />
-                    {s.name}
+                    {subject.name}
                   </span>
-                  <span className="font-semibold text-slate-800">{s.value}%</span>
+                  <span className="font-semibold text-slate-800">{subject.value}%</span>
                 </li>
               ))}
             </ul>

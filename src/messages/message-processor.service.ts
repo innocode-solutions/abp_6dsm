@@ -27,6 +27,19 @@ const HELP_TERMS = new Set([
   "orientacao"
 ]);
 
+const INITIAL_MENU_MESSAGES = new Set([
+  "bom dia",
+  "boa tarde",
+  "boa noite",
+  "tenho um problema",
+  "preciso de ajuda",
+  "o que voce pode fazer",
+  "o que voce pode fazer para me ajudar",
+  "como voce pode me ajudar"
+]);
+
+const GREETING_TERMS = new Set(["oi", "ola"]);
+
 interface DispatchOutcome {
   readonly text: string;
   readonly nlpClassification: FlowNlpClassification | null;
@@ -133,7 +146,7 @@ export class MessageProcessorService implements IMessageProcessor {
       };
     }
 
-    if (this.isHelpRequest(body)) {
+    if (this.isInitialMenuRequest(body)) {
       return {
         text: getFlowsAsMenu(flowRegistry).menu,
         nlpClassification: null,
@@ -237,16 +250,36 @@ export class MessageProcessorService implements IMessageProcessor {
   }
 
   private isHelpRequest(body: string): boolean {
-    const normalized = body
+    const normalized = this.normalizeNavigationText(body);
+    const words = normalized.split(/\s+/).filter((w) => w.length > 0);
+    if (words.length > 4) return false;
+    return words.some((w) => HELP_TERMS.has(w));
+  }
+
+  private isInitialMenuRequest(body: string): boolean {
+    const normalized = this.normalizeNavigationText(body);
+    const words = normalized.split(/\s+/).filter((w) => w.length > 0);
+
+    if (INITIAL_MENU_MESSAGES.has(normalized)) {
+      return true;
+    }
+
+    if (words.length <= 4 && words.some((w) => GREETING_TERMS.has(w))) {
+      return true;
+    }
+
+    return this.isHelpRequest(body);
+  }
+
+  private normalizeNavigationText(body: string): string {
+    return body
       .trim()
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-z\s]/g, "")
+      .replace(/\s+/g, " ")
       .trim();
-    const words = normalized.split(/\s+/).filter((w) => w.length > 0);
-    if (words.length > 4) return false;
-    return words.some((w) => HELP_TERMS.has(w));
   }
 
   private formatStep(question: string, options?: FlowOption[]): string {
