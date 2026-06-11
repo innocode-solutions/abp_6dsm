@@ -299,6 +299,48 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
       expect(response).toContain("2. Nao");
       expect(response).toContain("menu");
     });
+
+    it("deve usar contexto anterior em pergunta livre de continuidade", async () => {
+      const queries: string[] = [];
+      const fm = new FlowMatcher(flowRegistry);
+      await fm.initialize();
+      const processorWithContext = new MessageProcessorService(
+        new FlowEngine(),
+        fm,
+        new InMemorySessionStore(),
+        new KnowledgeService({
+          search: async (query) => {
+            queries.push(query);
+            return [
+              {
+                score: 2,
+                entry: {
+                  id: "cdc-18",
+                  title: "Art. 18 - Produto com defeito",
+                  body: "Fornecedor responde por vicio de qualidade."
+                }
+              }
+            ];
+          }
+        })
+      );
+
+      await processorWithContext.processIncomingMessage(
+        "user-cdc-context",
+        "Comprei um brinquedo online e veio com defeito"
+      );
+      await processorWithContext.processIncomingMessage(
+        "user-cdc-context",
+        "Entrei em contato com o fornecedor e ele nao quer resolver, o que eu faco?"
+      );
+
+      expect(queries[1]).toContain(
+        "Contexto anterior do consumidor: Comprei um brinquedo online e veio com defeito"
+      );
+      expect(queries[1]).toContain(
+        "Pergunta atual do consumidor: Entrei em contato com o fornecedor"
+      );
+    });
   });
 
   describe("Help Request - 'me ajuda' e similares", () => {

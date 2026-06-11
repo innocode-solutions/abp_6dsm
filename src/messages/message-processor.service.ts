@@ -9,6 +9,10 @@ import { KnowledgeService } from "../knowledge/knowledge-service";
 import { ISessionStore } from "../sessions/session-store.interface";
 import type { FlowDefinition, FlowOption, FlowResponse } from "../types/flow";
 import {
+  InMemoryConversationContextStore,
+  type IConversationContextStore
+} from "./conversation-context-store";
+import {
   type ConversationMessageContext,
   IMessageProcessor
 } from "./message-processor.interface";
@@ -53,7 +57,8 @@ export class MessageProcessorService implements IMessageProcessor {
     private sessionStore: ISessionStore,
     private knowledgeService?: KnowledgeService,
     private entityRepository?: IEntityExtractionRepository,
-    private agendamentoConversation?: AgendamentoConversationHandler
+    private agendamentoConversation?: AgendamentoConversationHandler,
+    private conversationContextStore: IConversationContextStore = new InMemoryConversationContextStore()
   ) {}
 
   async processIncomingMessage(
@@ -96,6 +101,7 @@ export class MessageProcessorService implements IMessageProcessor {
     if (existingSession) {
       if (body.trim().toLowerCase() === "menu" || body.trim().toLowerCase() === "0") {
         await this.sessionStore.clear(from);
+        await this.conversationContextStore.clear(from);
         return {
           text: getFlowsAsMenu(flowRegistry).menu,
           nlpClassification: null,
@@ -105,6 +111,7 @@ export class MessageProcessorService implements IMessageProcessor {
 
       if (this.isHelpRequest(body)) {
         await this.sessionStore.clear(from);
+        await this.conversationContextStore.clear(from);
         return {
           text: getFlowsAsMenu(flowRegistry).menu,
           nlpClassification: null,
@@ -171,6 +178,7 @@ export class MessageProcessorService implements IMessageProcessor {
       }
 
       if (matchResult.type === "return_to_menu") {
+        await this.conversationContextStore.clear(from);
         return {
           text: getFlowsAsMenu(flowRegistry).menu,
           nlpClassification,
@@ -207,9 +215,16 @@ export class MessageProcessorService implements IMessageProcessor {
       };
     }
 
-    const knowledgeAnswer = await this.knowledgeService?.findAnswer(body);
+    const knowledgeQuery = await this.buildKnowledgeQuery(from, body);
+    const knowledgeAnswer = await this.knowledgeService?.findAnswer(knowledgeQuery);
 
     if (knowledgeAnswer) {
+      await this.conversationContextStore.save({
+        userId: from,
+        lastUserMessage: body,
+        updatedAt: new Date()
+      });
+
       const schedulingOffer =
         (await this.agendamentoConversation?.offerScheduling?.(from)) ?? "";
 
@@ -280,6 +295,71 @@ export class MessageProcessorService implements IMessageProcessor {
       .replace(/[^a-z\s]/g, "")
       .replace(/\s+/g, " ")
       .trim();
+  }
+
+  private async buildKnowledgeQuery(userId: string, body: string): Promise<string> {
+    const context = await this.conversationContextStore.get(userId);
+
+    if (!context || !this.isFollowUpQuestion(body)) {
+      return body;
+    }
+
+    return [
+      `Contexto anterior do consumidor: ${context.lastUserMessage}`,
+      `Pergunta atual do consumidor: ${body}`
+    ].join("\n");
+  }
+
+  private isFollowUpQuestion(body: string): boolean {
+    const normalized = this.normalizeNavigationText(body);
+
+    if (!normalized) {
+      return false;
+    }
+
+    const words = normalized.split(/\s+/).filter((w) => w.length > 0);
+
+    if (words.length <= 2) {
+      return false;
+    }
+
+    const followUpPatterns = [
+      "e agora",
+      "o que faco",
+      "que faco",
+      "como proceder",
+      "entrei em contato",
+      "nao quer",
+      "nao resolveu",
+      "nao resolver",
+      "se recusou",
+      "continua",
+      "mesmo assim"
+    ];
+
+    if (followUpPatterns.some((pattern) => normalized.includes(pattern))) {
+      return true;
+    }
+
+    const referenceTerms = new Set([
+      "ele",
+      "ela",
+      "eles",
+      "elas",
+      "isso",
+      "esse",
+      "essa",
+      "dessa",
+      "desse",
+      "fornecedor",
+      "loja",
+      "empresa",
+      "vendedor",
+      "resolver",
+      "resolvido"
+    ]);
+
+    return words.some((word) => referenceTerms.has(word));
   }
 
   private formatStep(question: string, options?: FlowOption[]): string {
