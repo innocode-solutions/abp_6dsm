@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import {
   addMonths,
@@ -72,46 +72,98 @@ export function AgendamentosPage() {
   const [appointments, setAppointments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showFeriadoModal, setShowFeriadoModal] = useState(false)
+  const [feriadoSubmitting, setFeriadoSubmitting] = useState(false)
+  const [feriadoError, setFeriadoError] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
+  const [feriadoForm, setFeriadoForm] = useState({
+    data: format(new Date(), 'yyyy-MM-dd'),
+    nome: '',
+    tipo: 'nacional' as 'nacional' | 'estadual' | 'municipal',
+    bloqueia_agendamento: true,
+  })
+
+  async function loadAgenda() {
+    if (!token) return
+    try {
+      setLoading(true)
+      setError(null)
+      const res = await api.getAgenda(token)
+      setAppointments(res.dados || [])
+    } catch (err: any) {
+      setError(err.message || 'Falha ao carregar agendamentos')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleSubmitFeriado(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (!token) return
+    if (!feriadoForm.data || !feriadoForm.nome.trim()) {
+      setFeriadoError('Preencha data e nome do feriado.')
+      return
+    }
+    try {
+      setFeriadoSubmitting(true)
+      setFeriadoError(null)
+      await api.createFeriado(token, {
+        data: feriadoForm.data,
+        nome: feriadoForm.nome.trim(),
+        tipo: feriadoForm.tipo,
+        bloqueia_agendamento: feriadoForm.bloqueia_agendamento,
+      })
+      setShowFeriadoModal(false)
+      setFeriadoForm({
+        data: format(new Date(), 'yyyy-MM-dd'),
+        nome: '',
+        tipo: 'nacional',
+        bloqueia_agendamento: true,
+      })
+      setReloadKey((k) => k + 1)
+    } catch (err: any) {
+      setFeriadoError(err.message || 'Falha ao criar feriado')
+    } finally {
+      setFeriadoSubmitting(false)
+    }
+  }
 
   useEffect(() => {
     setHeaderExtra(
-      <button
-        type="button"
-        className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600"
-      >
-        <Plus className="size-4" aria-hidden />
-        Novo Agendamento
-      </button>,
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 rounded-xl border border-[#2563EB] bg-white px-3 py-2 text-sm font-semibold text-[#2563EB] shadow-sm hover:bg-blue-50"
+          onClick={() => {
+            setFeriadoError(null)
+            setShowFeriadoModal(true)
+          }}
+        >
+          <Plus className="size-4" aria-hidden />
+          Adicionar Feriado
+        </button>
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600"
+        >
+          <Plus className="size-4" aria-hidden />
+          Novo Agendamento
+        </button>
+      </div>,
     )
     return () => setHeaderExtra(null)
   }, [setHeaderExtra])
 
   useEffect(() => {
-    if (!token) return
-
-    async function loadAgenda() {
-      try {
-        setLoading(true)
-        setError(null)
-        const res = await api.getAgenda(token!)
-        setAppointments(res.dados || [])
-      } catch (err: any) {
-        setError(err.message || 'Falha ao carregar agendamentos')
-      } finally {
-        setLoading(false)
-      }
-    }
-
     loadAgenda()
-  }, [token])
+  }, [token, reloadKey])
 
   const gridDays = useMemo(() => {
-    const start = startOfWeek(startOfMonth(month), { weekStartsOn: 0 })
-    const end = endOfWeek(endOfMonth(month), { weekStartsOn: 0 })
+    const start = startOfWeek(startOfMonth(month))
+    const end = endOfWeek(endOfMonth(month))
     return eachDayOfInterval({ start, end })
   }, [month])
 
-  // Calculate dynamic dots based on loaded appointments
   const diasComAgendamento = useMemo(() => {
     const set = new Set<number>()
     appointments.forEach((a) => {
@@ -127,7 +179,6 @@ export function AgendamentosPage() {
     return set
   }, [appointments, month])
 
-  // Compute metrics dynamically from the database
   const metrics = useMemo(() => {
     let confirmados = 0
     let pendentes = 0
@@ -203,6 +254,118 @@ export function AgendamentosPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-6 pb-4">
+      {showFeriadoModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowFeriadoModal(false)
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+              <h2 className="text-base font-semibold text-[#0D1B4B]">Adicionar Feriado</h2>
+              <button
+                type="button"
+                onClick={() => setShowFeriadoModal(false)}
+                className="rounded-lg p-1.5 hover:bg-slate-100"
+                aria-label="Fechar"
+              >
+                <X className="size-4 text-slate-500" />
+              </button>
+            </div>
+            <form onSubmit={handleSubmitFeriado} className="flex flex-col gap-4 px-6 py-5">
+              {feriadoError && (
+                <div className="rounded-lg bg-red-50 border border-red-100 px-3 py-2 text-sm text-[#CC2229] font-medium">
+                  {feriadoError}
+                </div>
+              )}
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="feriado-data" className="text-xs font-semibold text-slate-700">
+                  Data *
+                </label>
+                <input
+                  id="feriado-data"
+                  type="date"
+                  required
+                  value={feriadoForm.data}
+                  onChange={(e) => setFeriadoForm((f) => ({ ...f, data: e.target.value }))}
+                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/25"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="feriado-nome" className="text-xs font-semibold text-slate-700">
+                  Nome *
+                </label>
+                <input
+                  id="feriado-nome"
+                  type="text"
+                  required
+                  placeholder="Ex: Natal"
+                  value={feriadoForm.nome}
+                  onChange={(e) => setFeriadoForm((f) => ({ ...f, nome: e.target.value }))}
+                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/25"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="feriado-tipo" className="text-xs font-semibold text-slate-700">
+                  Tipo *
+                </label>
+                <select
+                  id="feriado-tipo"
+                  value={feriadoForm.tipo}
+                  onChange={(e) =>
+                    setFeriadoForm((f) => ({
+                      ...f,
+                      tipo: e.target.value as 'nacional' | 'estadual' | 'municipal',
+                    }))
+                  }
+                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/25"
+                >
+                  <option value="nacional">Nacional</option>
+                  <option value="estadual">Estadual</option>
+                  <option value="municipal">Municipal</option>
+                </select>
+              </div>
+              <label className="flex cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={feriadoForm.bloqueia_agendamento}
+                  onChange={(e) =>
+                    setFeriadoForm((f) => ({ ...f, bloqueia_agendamento: e.target.checked }))
+                  }
+                  className="h-4 w-4 rounded border-slate-300 accent-[#2563EB]"
+                />
+                <span className="text-sm text-slate-700">Bloquear agendamentos neste dia</span>
+              </label>
+              <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowFeriadoModal(false)}
+                  disabled={feriadoSubmitting}
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={feriadoSubmitting}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 disabled:opacity-60"
+                >
+                  {feriadoSubmitting ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Salvar Feriado'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric
           icon={<CalIcon className="size-5 text-[#2563EB]" />}
