@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './context/AuthProvider'
 import { useAuth } from './hooks/useAuth'
 import { LayoutShellProvider } from './context/LayoutShellProvider'
+import { HeaderProvider } from './context/HeaderContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { Layout } from './components/Layout'
 import { LoginPage } from './pages/LoginPage'
@@ -37,7 +38,9 @@ export default function App() {
             <Route
               element={
                 <LayoutShellProvider>
-                  <Layout />
+                  <HeaderProvider>
+                    <Layout />
+                  </HeaderProvider>
                 </LayoutShellProvider>
               }
             >
