@@ -1,5 +1,12 @@
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '')
 
+type CreateFeriadoPayload = {
+  data: string
+  nome: string
+  tipo: 'nacional' | 'estadual' | 'municipal'
+  bloqueia_agendamento?: boolean
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -133,5 +140,12 @@ export const api = {
       }, 
       token
     )
+  },
+
+  async createFeriado(token: string, payload: CreateFeriadoPayload) {
+    return request<{ dados: any }>('/api/v1/agendamentos/admin/feriados', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, token)
   },
 }
