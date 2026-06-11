@@ -1,5 +1,5 @@
 import type { FormEvent, ReactNode } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   addMonths,
   eachDayOfInterval,
@@ -14,13 +14,36 @@ import {
 import { ptBR } from 'date-fns/locale'
 import { Calendar as CalIcon, Check, ChevronLeft, ChevronRight, ClipboardList, Clock, Plus, Search, X } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
-import { api } from '../services/api'
+import { api, type Feriado, type HorarioDisponivel, type Servico } from '../services/api'
 import { useMainLayoutOutlet } from '../hooks/useMainLayoutOutlet'
 
 type StatusAgendamento = 'Confirmado' | 'Pendente' | 'Cancelado'
 
 const initialMonth = new Date()
 const initialSelected = new Date()
+
+function formatIsoToBrDate(value: string): string {
+  const [year, month, day] = value.split('-')
+  if (!year || !month || !day) return value
+  return `${day}/${month}/${year}`
+}
+
+function formatBrDateToIso(value: string): string | null {
+  const match = value.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  if (!match) return null
+
+  const [, day, month, year] = match
+  const parsed = new Date(Number(year), Number(month) - 1, Number(day))
+  if (
+    parsed.getFullYear() !== Number(year) ||
+    parsed.getMonth() !== Number(month) - 1 ||
+    parsed.getDate() !== Number(day)
+  ) {
+    return null
+  }
+
+  return `${year}-${month}-${day}`
+}
 
 function statusRowClass(s: StatusAgendamento) {
   if (s === 'Confirmado') return 'bg-sky-50 text-sky-900'
@@ -63,37 +86,122 @@ function maskCPF(cpf: string): string {
 
 export function AgendamentosPage() {
   const { token } = useAuth()
-  const { setHeaderExtra } = useMainLayoutOutlet()
+  const { setHeaderExtra, setHeaderRefresh } = useMainLayoutOutlet()
+  const novoDataInputRef = useRef<HTMLInputElement | null>(null)
   const [month, setMonth] = useState(initialMonth)
   const [selected, setSelected] = useState(initialSelected)
   const [quick, setQuick] = useState<'Todos' | StatusAgendamento>('Todos')
   const [q, setQ] = useState('')
 
   const [appointments, setAppointments] = useState<any[]>([])
+  const [feriados, setFeriados] = useState<Feriado[]>([])
+  const [servicos, setServicos] = useState<Servico[]>([])
+  const [horariosDisponiveis, setHorariosDisponiveis] = useState<HorarioDisponivel[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [showFeriadoModal, setShowFeriadoModal] = useState(false)
+  const [showNovoModal, setShowNovoModal] = useState(false)
+  const [cancelTarget, setCancelTarget] = useState<{
+    codigo: string
+    nome: string
+    horario: string
+  } | null>(null)
+  const [showCancelModal, setShowCancelModal] = useState(false)
   const [feriadoSubmitting, setFeriadoSubmitting] = useState(false)
   const [feriadoError, setFeriadoError] = useState<string | null>(null)
+  const [agendamentoSubmitting, setAgendamentoSubmitting] = useState(false)
+  const [agendamentoError, setAgendamentoError] = useState<string | null>(null)
+  const [horariosLoading, setHorariosLoading] = useState(false)
+  const [cancelSubmitting, setCancelSubmitting] = useState(false)
+  const [cancelError, setCancelError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const [feriadoForm, setFeriadoForm] = useState({
-    data: format(new Date(), 'yyyy-MM-dd'),
+    data: format(new Date(), 'dd/MM/yyyy'),
     nome: '',
     tipo: 'nacional' as 'nacional' | 'estadual' | 'municipal',
     bloqueia_agendamento: true,
   })
+  const [novoForm, setNovoForm] = useState({
+    data: format(selected, 'yyyy-MM-dd'),
+    servico_id: '',
+    horario_id: '',
+    nome: '',
+    cpf: '',
+    assunto: 'Atendimento presencial',
+    descricao: '',
+  })
+  const [cancelMotivo, setCancelMotivo] = useState('Cancelamento administrativo')
+  const [cancelCodigo, setCancelCodigo] = useState('')
 
-  async function loadAgenda() {
+  const refreshAgenda = useCallback(() => {
+    setReloadKey((k) => k + 1)
+  }, [])
+
+  async function loadAgenda(isManualRefresh = false) {
     if (!token) return
     try {
-      setLoading(true)
+      if (isManualRefresh) {
+        setRefreshing(true)
+      } else {
+        setLoading(true)
+      }
       setError(null)
-      const res = await api.getAgenda(token)
-      setAppointments(res.dados || [])
+      setSuccessMessage(null)
+      const [agendaRes, feriadosRes] = await Promise.all([
+        api.getAgenda(token),
+        api.getFeriados(token),
+      ])
+      setAppointments(agendaRes.dados || [])
+      setFeriados(feriadosRes.dados || [])
     } catch (err: any) {
       setError(err.message || 'Falha ao carregar agendamentos')
     } finally {
       setLoading(false)
+      setRefreshing(false)
+    }
+  }
+
+  async function loadHorarios(servicoId: string, dataBr: string) {
+    if (!token || !servicoId) {
+      setHorariosDisponiveis([])
+      return
+    }
+
+    if (!dataBr) {
+      setHorariosDisponiveis([])
+      return
+    }
+
+    try {
+      setHorariosLoading(true)
+      const res = await api.getHorariosDisponiveisAdmin(token, servicoId, dataBr)
+      setHorariosDisponiveis(res.dados || [])
+    } finally {
+      setHorariosLoading(false)
+    }
+  }
+
+  async function openNovoAgendamentoModal() {
+    if (!token) return
+    setAgendamentoError(null)
+    setSuccessMessage(null)
+    setNovoForm((form) => ({
+      ...form,
+      data: format(selected, 'yyyy-MM-dd'),
+      horario_id: '',
+    }))
+    setShowNovoModal(true)
+    try {
+      const res = await api.getServicos(token)
+      const lista = res.dados || []
+      setServicos(lista)
+      if (!novoForm.servico_id && lista[0]?._id) {
+        setNovoForm((form) => ({ ...form, servico_id: lista[0]._id, horario_id: '' }))
+      }
+    } catch (err: any) {
+      setAgendamentoError(err.message || 'Falha ao carregar servicos')
     }
   }
 
@@ -104,27 +212,109 @@ export function AgendamentosPage() {
       setFeriadoError('Preencha data e nome do feriado.')
       return
     }
+    const dataIso = formatBrDateToIso(feriadoForm.data)
+    if (!dataIso) {
+      setFeriadoError('Informe a data no formato dd/mm/aaaa.')
+      return
+    }
     try {
       setFeriadoSubmitting(true)
       setFeriadoError(null)
       await api.createFeriado(token, {
-        data: feriadoForm.data,
+        data: dataIso,
         nome: feriadoForm.nome.trim(),
         tipo: feriadoForm.tipo,
         bloqueia_agendamento: feriadoForm.bloqueia_agendamento,
       })
       setShowFeriadoModal(false)
       setFeriadoForm({
-        data: format(new Date(), 'yyyy-MM-dd'),
+        data: format(new Date(), 'dd/MM/yyyy'),
         nome: '',
         tipo: 'nacional',
         bloqueia_agendamento: true,
       })
       setReloadKey((k) => k + 1)
+      setSuccessMessage('Feriado criado com sucesso.')
     } catch (err: any) {
       setFeriadoError(err.message || 'Falha ao criar feriado')
     } finally {
       setFeriadoSubmitting(false)
+    }
+  }
+
+  async function handleSubmitNovoAgendamento(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (!token) return
+
+    if (!novoForm.horario_id || !novoForm.nome.trim() || !novoForm.cpf.trim()) {
+      setAgendamentoError('Preencha cliente, CPF e horario.')
+      return
+    }
+
+    try {
+      setAgendamentoSubmitting(true)
+      setAgendamentoError(null)
+      const res = await api.criarAgendamentoAdmin(token, {
+        horario_id: novoForm.horario_id,
+        cidadao: {
+          nome: novoForm.nome.trim(),
+          cpf: novoForm.cpf.trim(),
+        },
+        assunto: novoForm.assunto.trim() || 'Atendimento presencial',
+        descricao: novoForm.descricao.trim() || 'Agendamento criado pelo painel administrativo.',
+      })
+      setShowNovoModal(false)
+      setNovoForm({
+        data: format(selected, 'yyyy-MM-dd'),
+        servico_id: '',
+        horario_id: '',
+        nome: '',
+        cpf: '',
+        assunto: 'Atendimento presencial',
+        descricao: '',
+      })
+      setHorariosDisponiveis([])
+      setReloadKey((k) => k + 1)
+      setSuccessMessage(`Agendamento ${res.dados.codigo_agendamento} criado com sucesso.`)
+    } catch (err: any) {
+      setAgendamentoError(err.message || 'Falha ao criar agendamento')
+    } finally {
+      setAgendamentoSubmitting(false)
+    }
+  }
+
+  async function handleSubmitCancelamento(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (!token) return
+
+    const codigo = (cancelTarget?.codigo || cancelCodigo).trim()
+    if (!codigo) {
+      setCancelError('Informe o codigo do agendamento.')
+      return
+    }
+    if (!cancelMotivo.trim()) {
+      setCancelError('Informe o motivo do cancelamento.')
+      return
+    }
+
+    try {
+      setCancelSubmitting(true)
+      setCancelError(null)
+      const res = await api.cancelarAgendamentoAdmin(
+        token,
+        codigo,
+        cancelMotivo.trim(),
+      )
+      setCancelTarget(null)
+      setShowCancelModal(false)
+      setCancelCodigo('')
+      setCancelMotivo('Cancelamento administrativo')
+      setReloadKey((k) => k + 1)
+      setSuccessMessage(`Agendamento ${res.dados.codigo_agendamento} cancelado com sucesso.`)
+    } catch (err: any) {
+      setCancelError(err.message || 'Falha ao cancelar agendamento')
+    } finally {
+      setCancelSubmitting(false)
     }
   }
 
@@ -145,9 +335,25 @@ export function AgendamentosPage() {
         <button
           type="button"
           className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600"
+          onClick={openNovoAgendamentoModal}
         >
           <Plus className="size-4" aria-hidden />
           Novo Agendamento
+        </button>
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 rounded-xl border border-[#CC2229] bg-white px-3 py-2 text-sm font-semibold text-[#CC2229] shadow-sm hover:bg-red-50"
+          onClick={() => {
+            setCancelTarget(null)
+            setCancelCodigo('')
+            setCancelMotivo('Cancelamento administrativo')
+            setCancelError(null)
+            setSuccessMessage(null)
+            setShowCancelModal(true)
+          }}
+        >
+          <X className="size-4" aria-hidden />
+          Cancelar Agendamento
         </button>
       </div>,
     )
@@ -155,8 +361,29 @@ export function AgendamentosPage() {
   }, [setHeaderExtra])
 
   useEffect(() => {
-    loadAgenda()
+    loadAgenda(reloadKey > 0)
   }, [token, reloadKey])
+
+  useEffect(() => {
+    if (!token) {
+      setHeaderRefresh(null)
+      return () => setHeaderRefresh(null)
+    }
+
+    setHeaderRefresh({
+      onRefresh: refreshAgenda,
+      isRefreshing: refreshing,
+    })
+
+    return () => setHeaderRefresh(null)
+  }, [refreshAgenda, refreshing, setHeaderRefresh, token])
+
+  useEffect(() => {
+    if (!showNovoModal) return
+    loadHorarios(novoForm.servico_id, novoForm.data).catch((err: any) => {
+      setAgendamentoError(err.message || 'Falha ao carregar horarios')
+    })
+  }, [showNovoModal, novoForm.servico_id, novoForm.data, token])
 
   const gridDays = useMemo(() => {
     const start = startOfWeek(startOfMonth(month))
@@ -178,6 +405,17 @@ export function AgendamentosPage() {
     })
     return set
   }, [appointments, month])
+
+  const feriadosPorData = useMemo(() => {
+    return feriados.reduce<Record<string, Feriado>>((acc, feriado) => {
+      if (feriado.data && feriado.bloqueia_agendamento) {
+        acc[feriado.data] = feriado
+      }
+      return acc
+    }, {})
+  }, [feriados])
+
+  const feriadoSelecionado = feriadosPorData[format(selected, 'yyyy-MM-dd')]
 
   const metrics = useMemo(() => {
     let confirmados = 0
@@ -225,6 +463,7 @@ export function AgendamentosPage() {
 
         return {
           id: a._id || a.id,
+          codigo: a.codigo_agendamento || 'Sem codigo',
           nome: a.cidadao?.nome || 'Sem Nome',
           iniciais: initials || 'C',
           cpfMascarado: maskCPF(a.cidadao?.cpf),
@@ -232,6 +471,7 @@ export function AgendamentosPage() {
           descricao: a.descricao || a.assunto || '',
           horario: formatTime(a.inicio_em, a.fim_em),
           status: mapStatus(a.status),
+          statusOriginal: String(a.status || ''),
         }
       })
   }, [appointments, selected, quick, q])
@@ -285,8 +525,11 @@ export function AgendamentosPage() {
                 </label>
                 <input
                   id="feriado-data"
-                  type="date"
+                  type="text"
+                  inputMode="numeric"
                   required
+                  placeholder="dd/mm/aaaa"
+                  pattern="\d{2}/\d{2}/\d{4}"
                   value={feriadoForm.data}
                   onChange={(e) => setFeriadoForm((f) => ({ ...f, data: e.target.value }))}
                   className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/25"
@@ -366,6 +609,251 @@ export function AgendamentosPage() {
         </div>
       )}
 
+      {showNovoModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowNovoModal(false)
+          }}
+        >
+          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+              <h2 className="text-base font-semibold text-[#0D1B4B]">Novo Agendamento</h2>
+              <button
+                type="button"
+                onClick={() => setShowNovoModal(false)}
+                className="rounded-lg p-1.5 hover:bg-slate-100"
+                aria-label="Fechar"
+              >
+                <X className="size-4 text-slate-500" />
+              </button>
+            </div>
+            <form onSubmit={handleSubmitNovoAgendamento} className="grid gap-4 px-6 py-5 sm:grid-cols-2">
+              {agendamentoError && (
+                <div className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-[#CC2229] sm:col-span-2">
+                  {agendamentoError}
+                </div>
+              )}
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-semibold text-slate-700">Data</span>
+                <div className="relative flex items-center rounded-xl border border-slate-200 px-3 py-2 text-sm focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-[#2563EB]/25">
+                  <span className="pointer-events-none flex-1 text-slate-900">
+                    {formatIsoToBrDate(novoForm.data)}
+                  </span>
+                  <CalIcon className="pointer-events-none size-4 text-slate-500" aria-hidden />
+                  <input
+                    ref={novoDataInputRef}
+                    type="date"
+                    required
+                    value={novoForm.data}
+                    onChange={(e) =>
+                      setNovoForm((form) => ({ ...form, data: e.target.value, horario_id: '' }))
+                    }
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                    aria-label="Data do agendamento"
+                  />
+                </div>
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-semibold text-slate-700">Servico</span>
+                <select
+                  required
+                  value={novoForm.servico_id}
+                  onChange={(e) =>
+                    setNovoForm((form) => ({
+                      ...form,
+                      servico_id: e.target.value,
+                      horario_id: '',
+                    }))
+                  }
+                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/25"
+                >
+                  <option value="">Selecione</option>
+                  {servicos.map((servico) => (
+                    <option key={servico._id} value={servico._id}>
+                      {servico.nome}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1.5 sm:col-span-2">
+                <span className="text-xs font-semibold text-slate-700">Horario</span>
+                <select
+                  required
+                  value={novoForm.horario_id}
+                  onChange={(e) =>
+                    setNovoForm((form) => ({ ...form, horario_id: e.target.value }))
+                  }
+                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/25"
+                >
+                  <option value="">
+                    {horariosLoading
+                      ? 'Carregando horarios...'
+                      : novoForm.servico_id
+                        ? 'Selecione um horario disponivel'
+                        : 'Selecione um servico primeiro'}
+                  </option>
+                  {horariosDisponiveis.map((horario) => (
+                    <option key={horario._id} value={horario._id}>
+                      {formatTime(horario.inicio_em, horario.fim_em)}
+                    </option>
+                  ))}
+                </select>
+                {!horariosLoading && novoForm.servico_id && horariosDisponiveis.length === 0 && (
+                  <span className="text-xs font-medium text-slate-500">
+                    Nenhum horario disponivel para a data selecionada.
+                  </span>
+                )}
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-semibold text-slate-700">Nome</span>
+                <input
+                  required
+                  value={novoForm.nome}
+                  onChange={(e) => setNovoForm((form) => ({ ...form, nome: e.target.value }))}
+                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/25"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-semibold text-slate-700">CPF</span>
+                <input
+                  required
+                  value={novoForm.cpf}
+                  onChange={(e) => setNovoForm((form) => ({ ...form, cpf: e.target.value }))}
+                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/25"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5 sm:col-span-2">
+                <span className="text-xs font-semibold text-slate-700">Assunto</span>
+                <input
+                  value={novoForm.assunto}
+                  onChange={(e) => setNovoForm((form) => ({ ...form, assunto: e.target.value }))}
+                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/25"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5 sm:col-span-2">
+                <span className="text-xs font-semibold text-slate-700">Descricao</span>
+                <textarea
+                  rows={3}
+                  value={novoForm.descricao}
+                  onChange={(e) =>
+                    setNovoForm((form) => ({ ...form, descricao: e.target.value }))
+                  }
+                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/25"
+                />
+              </label>
+              <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4 sm:col-span-2">
+                <button
+                  type="button"
+                  onClick={() => setShowNovoModal(false)}
+                  disabled={agendamentoSubmitting}
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={agendamentoSubmitting}
+                  className="rounded-xl bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 disabled:opacity-60"
+                >
+                  {agendamentoSubmitting ? 'Salvando...' : 'Criar Agendamento'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {(cancelTarget || showCancelModal) && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setCancelTarget(null)
+              setShowCancelModal(false)
+            }
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+              <h2 className="text-base font-semibold text-[#0D1B4B]">Cancelar Agendamento</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setCancelTarget(null)
+                  setShowCancelModal(false)
+                }}
+                className="rounded-lg p-1.5 hover:bg-slate-100"
+                aria-label="Fechar"
+              >
+                <X className="size-4 text-slate-500" />
+              </button>
+            </div>
+            <form onSubmit={handleSubmitCancelamento} className="flex flex-col gap-4 px-6 py-5">
+              {cancelError && (
+                <div className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-[#CC2229]">
+                  {cancelError}
+                </div>
+              )}
+              {cancelTarget ? (
+                <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                  <p className="font-semibold">{cancelTarget.codigo}</p>
+                  <p>{cancelTarget.nome}</p>
+                  <p>{cancelTarget.horario}</p>
+                </div>
+              ) : (
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-xs font-semibold text-slate-700">Codigo do agendamento</span>
+                  <input
+                    required
+                    value={cancelCodigo}
+                    onChange={(e) => setCancelCodigo(e.target.value)}
+                    placeholder="AGD-2026-000001"
+                    className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/25"
+                  />
+                </label>
+              )}
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-semibold text-slate-700">Motivo</span>
+                <textarea
+                  rows={3}
+                  required
+                  value={cancelMotivo}
+                  onChange={(e) => setCancelMotivo(e.target.value)}
+                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/25"
+                />
+              </label>
+              <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCancelTarget(null)
+                    setShowCancelModal(false)
+                  }}
+                  disabled={cancelSubmitting}
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Voltar
+                </button>
+                <button
+                  type="submit"
+                  disabled={cancelSubmitting}
+                  className="rounded-xl bg-[#CC2229] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-60"
+                >
+                  {cancelSubmitting ? 'Cancelando...' : 'Confirmar Cancelamento'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+          {successMessage}
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric
           icon={<CalIcon className="size-5 text-[#2563EB]" />}
@@ -431,6 +919,9 @@ export function AgendamentosPage() {
                 const isToday = isSameDay(day, new Date())
                 const dayNum = day.getDate()
                 const hasDot = diasComAgendamento.has(dayNum)
+                const dateKey = format(day, 'yyyy-MM-dd')
+                const feriado = feriadosPorData[dateKey]
+                const isFeriado = Boolean(feriado)
 
                 return (
                   <button
@@ -438,15 +929,25 @@ export function AgendamentosPage() {
                     type="button"
                     disabled={!inMonth}
                     onClick={() => inMonth && setSelected(day)}
+                    title={feriado ? feriado.nome : undefined}
+                    aria-label={feriado ? `${dayNum}, feriado: ${feriado.nome}` : undefined}
                     className={[
                       'relative flex h-10 flex-col items-center justify-center rounded-lg text-sm font-medium transition',
                       !inMonth ? 'text-slate-300' : 'text-slate-800 hover:bg-slate-50',
                       isSelected ? 'bg-[#2563EB] text-white hover:bg-blue-600' : '',
+                      isFeriado && inMonth && !isSelected ? 'bg-red-50 text-[#CC2229] hover:bg-red-100' : '',
                       isToday && !isSelected ? 'ring-2 ring-[#2563EB]/40' : '',
                     ].join(' ')}
                   >
                     <span>{dayNum}</span>
-                    {hasDot && inMonth ? (
+                    {isFeriado && inMonth ? (
+                      <span
+                        className={[
+                          'mt-0.5 h-1.5 w-1.5 rounded-full',
+                          isSelected ? 'bg-white' : 'bg-[#CC2229]',
+                        ].join(' ')}
+                      />
+                    ) : hasDot && inMonth ? (
                       <span
                         className={[
                           'mt-0.5 h-1 w-1 rounded-full',
@@ -460,6 +961,16 @@ export function AgendamentosPage() {
                 )
               })}
             </div>
+            {feriadoSelecionado && (
+              <div className="mt-4 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-[#CC2229]">
+                <p className="font-semibold">
+                  {feriadoSelecionado.nome} - {formatIsoToBrDate(feriadoSelecionado.data)}
+                </p>
+                <p className="text-xs text-red-700">
+                  Feriado {feriadoSelecionado.tipo}. Agendamentos bloqueados neste dia.
+                </p>
+              </div>
+            )}
           </section>
 
           <section className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
@@ -520,9 +1031,11 @@ export function AgendamentosPage() {
               <thead className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-3 py-3">Nome do Cliente</th>
+                  <th className="px-3 py-3">Codigo</th>
                   <th className="px-3 py-3">Tipo de Serviço</th>
                   <th className="px-3 py-3">Horário</th>
                   <th className="px-3 py-3">Status</th>
+                  <th className="px-3 py-3">Acoes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -538,6 +1051,11 @@ export function AgendamentosPage() {
                           <p className="text-xs text-slate-500">CPF {a.cpfMascarado}</p>
                         </div>
                       </div>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-4">
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                        {a.codigo}
+                      </span>
                     </td>
                     <td className="max-w-xs px-3 py-4">
                       <p className="font-medium text-slate-800">{a.tipoServico}</p>
@@ -560,11 +1078,30 @@ export function AgendamentosPage() {
                         {a.status}
                       </span>
                     </td>
+                    <td className="whitespace-nowrap px-3 py-4">
+                      <button
+                        type="button"
+                        disabled={a.status === 'Cancelado'}
+                        onClick={() => {
+                          setCancelError(null)
+                          setSuccessMessage(null)
+                          setShowCancelModal(true)
+                          setCancelTarget({
+                            codigo: a.codigo,
+                            nome: a.nome,
+                            horario: a.horario,
+                          })
+                        }}
+                        className="rounded-xl border border-red-200 px-3 py-1.5 text-xs font-semibold text-[#CC2229] hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Cancelar
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {filteredList.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-3 py-8 text-center text-slate-500 font-medium">
+                    <td colSpan={6} className="px-3 py-8 text-center text-slate-500 font-medium">
                       Nenhum agendamento para este dia.
                     </td>
                   </tr>
