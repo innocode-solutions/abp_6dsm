@@ -7,7 +7,7 @@
 <p align="center">
   <a href="#sobre">Sobre</a> |
   <a href="#visao">Visão do Produto</a> |
-  <a href="#inicializacao">Como Inicializar</a> 
+  <a href="#inicializacao">Como Inicializar</a> |
   <a href="#backlog">Product Backlog</a> |
   <a href="#sprints">Sprints</a> |
   <a href="#fluxos">Fluxos</a> |
@@ -66,7 +66,7 @@ Auxiliar cidadãos a entender seus direitos e os próximos passos para resolver 
 
 <p>
 
-Esta seção descreve como executar o <strong>backend</strong> do ProconBot Jacareí localmente. O frontend do painel administrativo encontra-se em <code>frontend/</code>, porém está <strong>mockado</strong> e não é necessário para rodar o chatbot no momento.
+Esta seção descreve como executar a implementação atual do ProconBot Jacareí, composta pelo <strong>bot WhatsApp</strong>, pela <strong>API REST/ERP</strong> e pelo <strong>frontend administrativo</strong> em React.
 
 </p>
 
@@ -76,17 +76,21 @@ Esta seção descreve como executar o <strong>backend</strong> do ProconBot Jaca
 |-----------|---------------------|
 | [Node.js](https://nodejs.org/) | 22.x (mesma versão usada no CI e no Docker) |
 | [npm](https://www.npmjs.com/) | Incluso com o Node.js |
-| MongoDB | Opcional — habilita histórico, sessões e índice RAG no banco |
-| Chave Gemini | Opcional — habilita busca semântica (RAG) e respostas com LLM |
+| MongoDB | Opcional para o bot básico; obrigatório para API/ERP, agenda, login e persistência completa |
+| Chave Gemini | Opcional — habilita busca semântica (RAG), embeddings e respostas com LLM |
+| Conta WhatsApp | Necessária para parear o bot via QR Code ou código de pareamento |
 
-<h3>Estrutura relevante do backend</h3>
+<h3>Estrutura relevante</h3>
 
 ```
 abp_6dsm/
-├── src/                 # Código TypeScript (bot, fluxos, RAG, WhatsApp)
+├── src/                 # Bot, fluxos, RAG, WhatsApp, banco e API HTTP de KPI
+├── src/api/             # API REST/ERP de autenticação, agendamentos, admin e conhecimento
+├── frontend/            # Painel administrativo React + Vite
 ├── docs/knowledge/      # Base do CDC em markdown
-├── .env.example         # Modelo de variáveis de ambiente
-├── package.json         # Scripts npm do backend
+├── .env.example         # Modelo principal de variáveis de ambiente
+├── .env.pc.example      # Modelo simples para rodar o bot localmente no PC
+├── package.json         # Scripts do backend, API e testes
 └── docker/Dockerfile    # Imagem para deploy (Node + Chromium)
 ```
 
@@ -95,16 +99,25 @@ abp_6dsm/
 **1. Clonar o repositório e instalar dependências**
 
 ```bash
-git clone https://github.com/innocode-solutions/abp_6dsm.git
+git clone -b develop https://github.com/innocode-solutions/abp_6dsm.git
 cd abp_6dsm
 npm install
+cd frontend
+npm install
+cd ..
 ```
 
 No Windows (PowerShell), se `npm` for bloqueado pela política de execução, use `npm.cmd` nos comandos abaixo (ex.: `npm.cmd install`, `npm.cmd run dev`).
 
 **2. Configurar variáveis de ambiente**
 
-Copie o arquivo de exemplo e ajuste os valores na raiz do projeto:
+Para testar apenas o bot WhatsApp localmente, sem MongoDB e sem Gemini, use o modelo simplificado:
+
+```powershell
+Copy-Item .env.pc.example .env
+```
+
+Para rodar a solução completa com API, agenda, login, painel e persistência, copie o modelo principal:
 
 ```bash
 cp .env.example .env
@@ -114,14 +127,30 @@ No PowerShell: `Copy-Item .env.example .env`
 
 | Variável | Obrigatória | Descrição |
 |----------|:-----------:|-----------|
-| `MONGODB_URI` | Não | URI do MongoDB. Sem ela, o bot funciona com sessão em memória |
+| `MONGODB_URI` | Sim para API/ERP; não para bot básico | URI do MongoDB. Sem ela, o bot funciona com sessão em memória, mas a API completa não inicia |
 | `MONGODB_DB_NAME` | Não | Nome do banco (padrão: extraído da URI) |
+| `JWT_SECRET` | Sim para API/ERP | Chave usada para assinar tokens de login do painel administrativo |
+| `CHATBOT_API_KEY` | Sim para API/ERP e agendamento pelo bot | Chave compartilhada entre o bot e a API de agendamentos via header `x-api-key` |
+| `PORT` | Não | Porta da API REST/ERP standalone (`npm run api:dev`), padrão `3000` |
+| `HTTP_PORT` | Não | Porta do servidor HTTP interno do bot (`npm run dev`), padrão `3000` |
+| `AGENDAMENTO_API_BASE_URL` | Sim para fluxo de agendamento no bot | URL da API REST/ERP, normalmente `http://localhost:3000` |
 | `GEMINI_API_KEY` | Não | Chave da [Google AI Studio](https://aistudio.google.com/apikey) para RAG + LLM |
 | `WHATSAPP_PHONE_NUMBER` | Não | Número em formato internacional para pareamento por código (ex.: `5511999999999`) |
+| `WHATSAPP_AUTH_PATH` | Não | Pasta onde a sessão do WhatsApp fica salva |
+
+Se for rodar a API e o bot ao mesmo tempo no mesmo computador, use portas diferentes. Um exemplo comum:
+
+```env
+PORT=3000
+HTTP_PORT=3001
+AGENDAMENTO_API_BASE_URL=http://localhost:3000
+CHATBOT_API_KEY=troque_por_uma_chave_local
+JWT_SECRET=troque_por_uma_chave_longa
+```
 
 **3. (Opcional) Subir o MongoDB e validar a conexão**
 
-Com o MongoDB em execução (local, Docker ou Atlas), defina `MONGODB_URI` no `.env` e execute:
+Com o MongoDB em execução (local, Docker, Atlas ou Railway), defina `MONGODB_URI` no `.env` e execute:
 
 ```bash
 npm run db:ping
@@ -129,7 +158,25 @@ npm run db:ping
 
 Se a conexão estiver correta, o terminal exibirá `Ping OK: conexão com MongoDB validada.`
 
-**4. (Opcional) Gerar o índice semântico do CDC**
+**4. Preparar dados iniciais da API/ERP**
+
+Para acessar o painel administrativo, crie o primeiro usuário admin:
+
+```powershell
+$env:ADMIN_EMAIL="seu-email-admin@exemplo.com"
+$env:ADMIN_SENHA="troque-por-uma-senha-forte"
+npm.cmd run api:seed-admin
+```
+
+Para popular serviço, funcionário e horários de atendimento:
+
+```bash
+npm run api:seed-horarios
+```
+
+Antes de executar os comandos de seed, confirme se o `MONGODB_URI` do `.env` aponta para o banco correto.
+
+**5. (Opcional) Gerar o índice semântico do CDC**
 
 Necessário para **busca semântica** quando `GEMINI_API_KEY` estiver definida (o bot sobe sem esse passo, mas cai em busca por palavra-chave até o índice existir). O script lê `docs/knowledge/cdc.md`, gera embeddings e salva em `src/knowledge/cdc-index.json` (e no MongoDB, se `MONGODB_URI` estiver definida):
 
@@ -137,13 +184,30 @@ Necessário para **busca semântica** quando `GEMINI_API_KEY` estiver definida (
 npm run rag:index
 ```
 
-**5. Iniciar o servidor**
+**6. Iniciar os serviços**
 
-Modo desenvolvimento (TypeScript direto via `tsx`, sem build prévio):
+Para rodar apenas o bot WhatsApp:
 
 ```bash
 npm run dev
 ```
+
+Para rodar a API REST/ERP:
+
+```bash
+npm run api:dev
+```
+
+A API ficará disponível em `http://localhost:3000` por padrão. A documentação Swagger fica em `http://localhost:3000/api-docs`.
+
+Para rodar o frontend administrativo:
+
+```bash
+cd frontend
+npm run dev
+```
+
+O painel Vite ficará disponível em `http://localhost:5173`. Por padrão, ele consome `http://localhost:3000`; para alterar, defina `VITE_API_URL` no `.env` da raiz do projeto, pois o `vite.config.ts` usa `envDir: '..'`.
 
 Modo produção local:
 
@@ -152,7 +216,16 @@ npm run build
 npm start
 ```
 
-**6. Autenticar o WhatsApp**
+Para iniciar somente a API compilada:
+
+```bash
+npm run build
+npm run api:start
+```
+
+Também é possível usar `SERVICE_ROLE=api` com `npm start`, pois `src/start.ts` escolhe entre bot e API conforme essa variável.
+
+**7. Autenticar o WhatsApp**
 
 Na primeira execução, o `whatsapp-web.js` solicita login. Acompanhe o terminal:
 
@@ -161,38 +234,57 @@ Na primeira execução, o `whatsapp-web.js` solicita login. Acompanhe o terminal
 
 Após autenticado, a sessão fica em `.wwebjs_auth/` (ou no caminho definido em `WHATSAPP_AUTH_PATH`). Nas próximas execuções, o login costuma ser reutilizado automaticamente.
 
-Quando tudo estiver certo, você verá mensagens como `[WhatsApp] Conectado e pronto para uso.` e `Servidor iniciado com arquitetura de provedores e persistência.`
+Quando tudo estiver certo, você verá mensagens como `[WhatsApp] Conectado e pronto para uso.` e `Aplicação iniciada com arquitetura de provedores e persistência.`
 
-<h3>Scripts úteis do backend</h3>
+<h3>Scripts úteis</h3>
 
 | Comando | Descrição |
 |---------|-----------|
-| `npm run dev` | Sobe o bot em modo desenvolvimento |
-| `npm run build` | Compila TypeScript para `dist/` |
-| `npm start` | Executa a versão compilada |
+| `npm run dev` | Sobe o bot WhatsApp e o servidor HTTP interno de KPIs |
+| `npm run api:dev` | Sobe a API REST/ERP com MongoDB |
+| `npm run api:http:dev` | Sobe apenas o servidor HTTP de KPIs com dados em memória |
+| `npm run api:seed-admin` | Cria ou atualiza o primeiro usuário admin |
+| `npm run api:seed-horarios` | Popula serviço, funcionário e horários disponíveis |
+| `npm run build` | Compila bot e API para `dist/` |
+| `npm start` | Executa a versão compilada escolhendo o papel por `SERVICE_ROLE` |
+| `npm run api:start` | Executa somente a API compilada |
 | `npm test` / `npm run test:run` | Executa testes com Vitest |
 | `npm run typecheck` | Verifica tipos sem gerar build |
 | `npm run db:ping` | Testa conexão com o MongoDB |
 | `npm run db:inspect` | Inspeciona coleções do banco |
 | `npm run db:seed-sample` | Insere dados de exemplo |
 | `npm run rag:index` | Gera/atualiza índice vetorial do CDC |
+| `cd frontend && npm run dev` | Sobe o painel administrativo |
+| `cd frontend && npm run build` | Gera build do frontend |
 
 <h3>Execução com Docker (opcional)</h3>
 
-Para ambiente containerizado (inclui Chromium para o WhatsApp):
+Para ambiente containerizado (inclui Chromium para o WhatsApp), construa a imagem:
 
 ```bash
 docker build -f docker/Dockerfile -t proconbot-jacarei .
+```
+
+Para rodar o bot:
+
+```bash
 docker run --env-file .env proconbot-jacarei
 ```
 
-Em produção, o deploy utiliza [Railway](https://railway.app/) com as variáveis descritas em `.env.example` e em `RELEASE.md`.
+Para rodar somente a API:
+
+```bash
+docker run --env-file .env -e SERVICE_ROLE=api -p 3000:3000 proconbot-jacarei
+```
+
+Em produção, o backend/API utiliza [Railway](https://railway.app/) e o frontend possui deploy separado na Vercel, conforme as variáveis descritas em `.env.example` e em `RELEASE.md`.
 
 <h3>Comportamento sem dependências opcionais</h3>
 
-- Sem `MONGODB_URI`: fluxos e conversas funcionam com **sessão em memória**; histórico não é persistido.
+- Sem `MONGODB_URI`: o bot funciona com **sessão em memória**, mas histórico não é persistido e a API REST/ERP completa não inicia.
 - Sem `GEMINI_API_KEY`: o sistema usa **busca por palavra-chave** no CDC, sem LLM nem embeddings.
 - Com `GEMINI_API_KEY` mas sem índice (`npm run rag:index` ou dados no MongoDB): o LLM pode responder, porém a busca no CDC permanece por **palavra-chave** até o índice ser gerado.
+- Sem `CHATBOT_API_KEY` ou `AGENDAMENTO_API_BASE_URL`: o bot continua respondendo fluxos e RAG, mas o fluxo de agendamento fica desabilitado.
 
 ---
 
@@ -200,45 +292,54 @@ Em produção, o deploy utiliza [Railway](https://railway.app/) com as variávei
 
 <h1 align="center">Product Backlog</h1>
 
-| ID   | Req. | User Story                                       | Prioridade | Story Points |
-|------|------|--------------------------------------------------|:----------:|:------------:|
-| US01 | RF01 | Integrar chatbot ao WhatsApp                     | P0 | 5 |
-| US02 | RF01 | Receber mensagens de usuários                    | P0 | 3 |
-| US03 | RF01, RF04 | Enviar respostas ao usuário                | P0 | 3 |
-| US04 | RF03 | Gerenciar sessões de conversa                    | P0 | 3 |
-| US05 | RF02, RF03 | Criar motor de fluxo decisório            | P0 | 5 |
-| US06 | RF02, RF03, RF04 | Implementar fluxo de cobrança indevida | P0 | 3 |
-| US07 | RF02, RF03, RF04 | Implementar fluxo de empréstimo não reconhecido | P0 | 3 |
-| US08 | RF02, RF03, RF04 | Implementar fluxo de direito de arrependimento | P0 | 3 |
-| US09 | RF02, RF03, RF04 | Implementar fluxo de cancelamento de plano | P1 | 3 |
-| US10 | RF02, RF03, RF04 | Implementar fluxo de garantia de produto | P1 | 3 |
-| US11 | RF06 | Persistir histórico de mensagens                 | P0 | 3 |
-| US12 | RF02, RF03 | Estruturar base FAQ do PROCON              | P0 | 3 |
-| US13 | RF05 | Implementar ingestão do CDC PDF                  | P1 | 5 |
-| US14 | RF05 | Realizar chunking do CDC                         | P1 | 3 |
-| US15 | RF05 | Gerar embeddings da base de conhecimento         | P1 | 5 |
-| US16 | RF05 | Implementar busca semântica (RAG)                | P1 | 5 |
-| US17 | RF02, RF03 | Classificar intenção da mensagem           | P1 | 5 |
-| US18 | RF03 | Extrair entidades relevantes                     | P2 | 3 |
-| US19 | RF05, RNF05 | Integrar LLM para resposta final          | P1 | 3 |
-| US20 | RF06 | Implementar logs de auditoria                    | P1 | 3 |
-| US21 | RNF02 | Criar deploy em nuvem                           | P0 | 5 |
-| US22 | RNF02 | Criar container Docker                          | P1 | 3 |
-| US23 | RNF02 | Criar pipeline CI/CD                            | P2 | 3 |
-| US24 | RF04, RNF04 | Implementar fallback para atendimento presencial | P1 | 2 |
-| US25 | RNF04, RNF05 | Adicionar aviso de uso de IA             | P1 | 1 |
-| US26 | RF06 | Criar dashboard simples de métricas              | P2 | 5 |
-| US27 | RNF02 | Implementar monitoramento e logs                | P2 | 3 |
-| US28 | RNF02 | Criar testes básicos                            | P2 | 3 |
-| US29 | RNF01, RNF03 | Documentar arquitetura                   | P2 | 2 |
-| US30 | RNF01 | Criar documentação de uso                       | P2 | 2 |
-| US31 | RNF02, RNF03 | Configurar banco de dados                | P0 | 5 |
-| US32 | RF03, RF06 | Persistir sessões no banco                 | P0 | 3 |
-| US33 | RF01, RF03 | Criar fluxo de agendamento                 | P1 | 5 |
-| US34 | RF03, RF06 | Listar horários disponíveis                | P1 | 5 |
-| US35 | RF06, RNF03 | Persistir agendamentos                    | P1 | 3 |
-| US36 | RF04 | Confirmar agendamento ao usuário                 | P1 | 2 |
-| US37 | RF03, RF06 | Cancelar ou reagendar atendimento         | P2 | 3 |
+Backlog alinhado ao GitHub Project **ABP 6DSM** em 12/06/2026. As tarefas técnicas do Project sem ID de user story aparecem nas tabelas de sprint pelo número da issue.
+
+| ID | Req. | User Story | Prioridade | Story Points | Status |
+|----|------|------------|:----------:|:------------:|:------:|
+| US01 | RF01 | Integrar chatbot ao WhatsApp | P0 | 5 | Concluída |
+| US02 | RF01 | Receber mensagens de usuários | P0 | 3 | Concluída |
+| US03 | RF01, RF04 | Enviar respostas ao usuário | P0 | 3 | Concluída |
+| US04 | RF03 | Gerenciar sessões de conversa | P0 | 3 | Concluída |
+| US05 | RF02, RF03 | Criar motor de fluxo decisório | P0 | 5 | Concluída |
+| US06 | RF02, RF03, RF04 | Implementar fluxo de cobrança indevida | P0 | 3 | Concluída |
+| US07 | RF02, RF03, RF04 | Implementar fluxo de empréstimo não reconhecido | P0 | 3 | Concluída |
+| US08 | RF02, RF03, RF04 | Implementar fluxo de direito de arrependimento | P0 | 3 | Concluída |
+| US09 | RF02, RF03, RF04 | Implementar fluxo de cancelamento de plano | P1 | 3 | Concluída |
+| US10 | RF02, RF03, RF04 | Implementar fluxo de garantia de produto | P1 | 3 | Concluída |
+| US11 | RF06 | Persistir histórico de mensagens | P0 | 3 | Concluída |
+| US12 | RF02, RF03 | Estruturar base FAQ do PROCON | P0 | 3 | Concluída |
+| US13 | RF05 | Estruturar Código de Defesa do Consumidor | P1 | 5 | Concluída |
+| US14 | RF05 | Realizar chunking do CDC | P1 | 3 | Concluída |
+| US15 | RF05 | Gerar embeddings da base de conhecimento | P1 | 5 | Concluída |
+| US16 | RF05 | Implementar busca semântica (RAG) | P1 | 5 | Concluída |
+| US17 | RF02, RF03 | Classificar intenção da mensagem | P1 | 5 | Concluída |
+| US18 | RF03 | Extrair entidades relevantes | P2 | 3 | Concluída |
+| US19 | RF05, RNF05 | Integrar LLM para resposta final | P1 | 3 | Concluída |
+| US20 | RF06 | Implementar logs de auditoria | P1 | 3 | Concluída |
+| US21 | RNF02 | Criar deploy em nuvem | P1 | 5 | Concluída |
+| US22 | RNF02 | Criar container Docker | P0 | 3 | Concluída |
+| US23 | RNF02 | Criar pipeline CI/CD | P2 | 3 | Concluída |
+| US24 | RF04, RNF04 | Implementar fallback para atendimento presencial | P1 | 2 | Concluída |
+| US25 | RNF04, RNF05 | Adicionar aviso de uso de IA | P1 | 1 | Concluída |
+| US26 | RF06 | Criar dashboard de métricas | P2 | 5 | Concluída |
+| US27 | RNF02 | Implementar monitoramento e logs | P2 | 3 | Concluída |
+| US28 | RNF02 | Criar testes básicos | P2 | 3 | Concluída |
+| US29 | RNF01, RNF03 | Documentar arquitetura | P2 | 2 | Concluída |
+| US30 | RNF01 | Criar documentação de uso | P0 | 2 | Concluída |
+| US31 | RNF02, RNF03 | Configurar banco de dados | P0 | 5 | Concluída |
+| US32 | RF03, RF06 | Persistir sessões no banco | P0 | 3 | Concluída |
+| US33 | RF01, RF03 | Criar fluxo de agendamento | P1 | 5 | Concluída |
+| US34 | RF03, RF06 | Listar horários disponíveis | P1 | 5 | Concluída |
+| US35 | RF06, RNF03 | Persistir agendamentos | P1 | 3 | Concluída |
+| US36 | RF04, RF06 | Confirmar agendamento ao usuário | P1 | 3 | Concluída |
+| US37 | RF03, RF06 | Cancelar ou reagendar atendimento | P2 | 3 | Concluída |
+| US38 | RF06, RNF03 | Alimentar o frontend com dados reais da API | P1 | 3 | Concluída |
+| US39 | RF03, RF05 | Resolver perda de memória da LLM | P0 | 5 | Concluída |
+| US40 | RF02, RF03, RF04 | Corrigir entendimento de mensagens iniciais abertas | P1 | 3 | Concluída |
+| US41 | RNF02, RNF03 | Separar API e backend do bot | P1 | 5 | Concluída |
+| US42 | RNF02 | Ajustar deploy Railway para bot/API separados e trust proxy | P0 | 3 | Concluída |
+| US43 | RNF02 | Realizar deploy do frontend na Vercel | P2 | 1 | Concluída |
+| US44 | RF03, RF04 | Corrigir início do agendamento para aceitar "Sim" e "Não" | P2 | 3 | Concluída |
 
 ---
 
@@ -265,6 +366,11 @@ Implementar a comunicação via WhatsApp e os primeiros fluxos de atendimento do
 | US07 | RF02, RF03, RF04 | Fluxo empréstimo não reconhecido | 3 |
 | US08 | RF02, RF03, RF04 | Fluxo direito de arrependimento | 3 |
 | US09 | RF02, RF03, RF04 | Fluxo cancelamento de plano | 3 |
+| US10 | RF02, RF03, RF04 | Fluxo garantia de produto | 3 |
+| US11 | RF06 | Persistir histórico de mensagens | 3 |
+| US21 | RNF02 | Deploy em nuvem | 5 |
+| US22 | RNF02 | Container Docker | 3 |
+| US31 | RNF02, RNF03 | Configurar banco de dados | 5 |
 
 <br>
 
@@ -299,23 +405,28 @@ Implementar base de conhecimento, interpretação de linguagem e persistência d
 
 | ID | Req. | User Story | Pontos |
 |----|------|------------|-------|
-| US10 | RF02, RF03, RF04 | Fluxo garantia de produto | 3 |
-| US11 | RF06 | Persistir histórico de mensagens | 3 |
+| #69 | RF01, RF03 | Criar API de agendamento | 5 |
+| #70 | RF06 | Iniciar construção do ERP | 3 |
 | US12 | RF02, RF03 | Estruturar base FAQ | 3 |
-| US13 | RF05 | Ingestão CDC PDF | 5 |
+| US13 | RF05 | Estruturar Código de Defesa do Consumidor | 5 |
 | US14 | RF05 | Chunking CDC | 3 |
 | US15 | RF05 | Gerar embeddings | 5 |
 | US16 | RF05 | Implementar busca semântica (RAG) | 5 |
 | US17 | RF02, RF03 | Classificar intenção | 5 |
 | US18 | RF03 | Extrair entidades | 3 |
-| US31 | RNF02, RNF03 | Configurar banco de dados | 5 |
+| US19 | RF05, RNF05 | Integrar LLM para resposta final | 3 |
+| US20 | RF06 | Logs auditoria | 3 |
+| US23 | RNF02 | Pipeline CI/CD | 3 |
+| US24 | RF04, RNF04 | Fallback atendimento presencial | 2 |
+| US26 | RF06 | Dashboard métricas | 5 |
+| US28 | RNF02 | Testes | 3 |
 | US32 | RF03, RF06 | Persistir sessões no banco | 3 |
 
 <br>
 
 <div align="center">
   <p><i>Gráfico de Burndown do Sprint 2</i></p>
-  <img width="1366" height="766" alt="Sprint 1 - Burndown" src="https://github.com/user-attachments/assets/1c00a756-d64b-4881-b014-557a3af94a34" />
+  <img width="1366" height="766" alt="Sprint 2 - Burndown" src="https://github.com/user-attachments/assets/1c00a756-d64b-4881-b014-557a3af94a34" />
 </div>
 
 ---
@@ -341,23 +452,22 @@ Realizar deploy em nuvem, implementar observabilidade, governança, documentaç�
 
 | ID | Req. | User Story | Pontos |
 |----|------|------------|-------|
-| US19 | RF05, RNF05 | Integrar LLM para resposta final | 3 |
-| US20 | RF06 | Logs auditoria | 3 |
-| US21 | RNF02 | Deploy em nuvem | 5 |
-| US22 | RNF02 | Container Docker | 3 |
-| US23 | RNF02 | Pipeline CI/CD | 3 |
-| US24 | RF04, RNF04 | Fallback atendimento presencial | 2 |
 | US25 | RNF04, RNF05 | Aviso uso IA | 1 |
-| US26 | RF06 | Dashboard métricas | 5 |
 | US27 | RNF02 | Monitoramento | 3 |
-| US28 | RNF02 | Testes | 3 |
 | US29 | RNF01, RNF03 | Documentação arquitetura | 2 |
 | US30 | RNF01 | Documentação uso | 2 |
 | US33 | RF01, RF03 | Criar fluxo de agendamento | 5 |
 | US34 | RF03, RF06 | Listar horários disponíveis | 5 |
 | US35 | RF06, RNF03 | Persistir agendamentos | 3 |
-| US36 | RF04 | Confirmar agendamento ao usuário | 2 |
+| US36 | RF04, RF06 | Confirmar agendamento ao usuário | 3 |
 | US37 | RF03, RF06 | Cancelar ou reagendar atendimento | 3 |
+| US38 | RF06, RNF03 | Alimentar o frontend com dados reais da API | 3 |
+| US39 | RF03, RF05 | Resolver perda de memória da LLM | 5 |
+| US40 | RF02, RF03, RF04 | Corrigir entendimento de mensagens iniciais abertas | 3 |
+| US41 | RNF02, RNF03 | Separar API e backend do bot | 5 |
+| US42 | RNF02 | Ajustar deploy Railway para bot/API separados e trust proxy | 3 |
+| US43 | RNF02 | Deploy do frontend na Vercel | 1 |
+| US44 | RF03, RF04 | Corrigir início do agendamento para aceitar "Sim" e "Não" | 3 |
 
 </details>
 <span id="equipe"></span>
