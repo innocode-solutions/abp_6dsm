@@ -150,7 +150,7 @@ describe("AgendamentoConversationService", () => {
 
     const horarios = await service.handle(userId, "1");
 
-    expect(horarios).toContain("Horarios disponiveis");
+    expect(horarios).toContain("Proximos horarios disponiveis");
     expect(horarios).toContain("03/06/2026 as 09:00");
     expect(api.listarServicos).toHaveBeenCalledOnce();
   });
@@ -161,7 +161,7 @@ describe("AgendamentoConversationService", () => {
     await service.offerScheduling(userId);
     const horarios = await service.handle(userId, "sim");
 
-    expect(horarios).toContain("Horarios disponiveis");
+    expect(horarios).toContain("Proximos horarios disponiveis");
     expect(horarios).toContain("03/06/2026 as 09:00");
     expect(api.listarServicos).toHaveBeenCalledOnce();
   });
@@ -192,7 +192,7 @@ describe("AgendamentoConversationService", () => {
     await service.handle(horariosUserId, "quero agendar");
     const horarios = await service.handle(horariosUserId, "Sim");
 
-    expect(horarios).toContain("Horarios disponiveis");
+    expect(horarios).toContain("Proximos horarios disponiveis");
 
     const menuUserId = "user-direct-nao";
 

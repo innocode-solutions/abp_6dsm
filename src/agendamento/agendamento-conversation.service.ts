@@ -458,11 +458,11 @@ export class AgendamentoConversationService implements AgendamentoConversationHa
 
   private formatHorarios(horarios: AgendamentoHorario[]): string {
     return [
-      "Horarios disponiveis:",
+      "Proximos horarios disponiveis:",
       "",
       this.formatOptions(horarios, (horario) => this.formatHorarioLabel(horario)),
       "",
-      "Digite o numero do horario desejado."
+      "Digite o numero do horario desejado ou envie menu para voltar."
     ].join("\n");
   }
 
