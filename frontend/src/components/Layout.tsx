@@ -11,9 +11,7 @@ const titles: Record<string, string> = {
   '/conversas': 'Conversas',
   '/agendamentos': 'Agendamentos',
   '/usuarios': 'Usuários',
-  '/mensagens-nao-entendidas': 'Mensagens não entendidas',
   '/base-de-conhecimento': 'Base de Conhecimento',
-  '/relatorios': 'Relatórios',
   '/configuracoes': 'Configurações',
 }
 

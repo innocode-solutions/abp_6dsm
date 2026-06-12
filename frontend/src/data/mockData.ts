@@ -53,13 +53,6 @@ export const dashboardMetricas = [
     tendencia: '↑ 5% vs ontem',
     tendenciaPositiva: true,
   },
-  {
-    id: 'naoEntendidas',
-    titulo: 'Mensagens não entendidas',
-    valor: '23',
-    tendencia: '↓ 10% vs ontem',
-    tendenciaPositiva: false,
-  },
 ]
 
 export type StatusConversa = 'Ativo' | 'Pendente' | 'Resolvido' | 'Atenção'
@@ -241,44 +234,6 @@ export const usuariosMock: UsuarioAdmin[] = [
   },
 ]
 
-export interface MensagemNaoEntendidaRow {
-  id: string
-  dataHora: string
-  usuario: string
-  mensagem: string
-  intencao: string
-  confianca: number
-}
-
-export const mensagensNaoEntendidasDetalhe: MensagemNaoEntendidaRow[] = [
-  {
-    id: 'm1',
-    dataHora: '24/05/2025 14:32',
-    usuario: 'João S.',
-    mensagem: 'Como eu faço pra cancelar aquela compra que fiz o...',
-    intencao: 'Cancelamento',
-    confianca: 65,
-  },
-  {
-    id: 'm2',
-    dataHora: '24/05/2025 11:15',
-    usuario: 'Maria A.',
-    mensagem: 'Tem como falar com um humano por favor?',
-    intencao: 'Transferência',
-    confianca: 82,
-  },
-  {
-    id: 'm3',
-    dataHora: '23/05/2025 09:45',
-    usuario: 'Carlos P.',
-    mensagem: 'Onde fica o procon físico?',
-    intencao: 'Endereço',
-    confianca: 45,
-  },
-]
-
-export const mensagensNaoEntendidasTotal = 23
-
 export interface BaseConhecimentoItem {
   id: string
   titulo: string
@@ -315,43 +270,5 @@ export const baseConhecimentoMock: BaseConhecimentoItem[] = [
     categoria: 'Mediação',
     atualizadoEm: '15/05/2025',
     trechos: 6,
-  },
-]
-
-export interface MensagemInboxRow {
-  id: string
-  dataHora: string
-  usuario: string
-  preview: string
-  canal: string
-}
-
-/** Relatórios — linha “Desempenho de Atendimentos” (7 dias) */
-export const relatorioDesempenhoAtendimentos = diasUltimos7.map((dia, i) => ({
-  dia,
-  atendimentos: [100, 140, 200, 220, 180, 120, 270][i]!,
-}))
-
-export const mensagensInboxMock: MensagemInboxRow[] = [
-  {
-    id: 'i1',
-    dataHora: '24/05/2025 13:05',
-    usuario: 'Paula R.',
-    preview: 'O bot não entendeu meu número de protocolo...',
-    canal: 'WhatsApp',
-  },
-  {
-    id: 'i2',
-    dataHora: '24/05/2025 09:40',
-    usuario: 'Lucas T.',
-    preview: 'Quero falar com atendente sobre cobrança duplicada.',
-    canal: 'Web',
-  },
-  {
-    id: 'i3',
-    dataHora: '23/05/2025 17:22',
-    usuario: 'Sandra M.',
-    preview: 'Qual o horário de funcionamento?',
-    canal: 'WhatsApp',
   },
 ]

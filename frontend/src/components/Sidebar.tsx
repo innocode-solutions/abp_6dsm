@@ -1,7 +1,5 @@
 import { NavLink } from 'react-router-dom'
 import {
-  AlertCircle,
-  BarChart2,
   BookOpen,
   Calendar,
   LayoutDashboard,
@@ -18,13 +16,7 @@ const nav = [
   { to: '/conversas', label: 'Conversas', icon: MessageSquare },
   { to: '/agendamentos', label: 'Agendamentos', icon: Calendar },
   { to: '/usuarios', label: 'Usuários', icon: Users },
-  {
-    to: '/mensagens-nao-entendidas',
-    label: 'Mensagens não entendidas',
-    icon: AlertCircle,
-  },
   { to: '/base-de-conhecimento', label: 'Base de Conhecimento', icon: BookOpen },
-  { to: '/relatorios', label: 'Relatórios', icon: BarChart2 },
   { to: '/configuracoes', label: 'Configurações', icon: Settings },
 ]
 
