@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { BookOpen, FileText, Plus } from "lucide-react";
 import { api } from "../services/api";
 import { useHeader } from "../context/HeaderContext";
+import { useAuth } from "../hooks/useAuth";
 
 interface Artigo {
   id: string | number;
@@ -12,6 +13,8 @@ interface Artigo {
 }
 
 export function BaseConhecimentoPage() {
+  const { token, user } = useAuth();
+  const isAdmin = user?.perfil === "admin";
   const [artigos, setArtigos] = useState<Artigo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -26,9 +29,10 @@ export function BaseConhecimentoPage() {
   }, [dataSelecionada]);
 
   const carregarDados = async () => {
+    if (!token) return;
+
     try {
       setIsLoading(true);
-      const token = localStorage.getItem("token") || "";
       const response = await api.getBaseConhecimento(token);
 
       setArtigos(response.dados || []);
@@ -47,11 +51,10 @@ export function BaseConhecimentoPage() {
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file || !token || !isAdmin) return;
 
     try {
       setIsUploading(true);
-      const token = localStorage.getItem("token") || "";
 
       await api.uploadBaseConhecimento(token, file);
 
@@ -70,6 +73,8 @@ export function BaseConhecimentoPage() {
 
   // Função para deletar o arquivo
   const handleDelete = async (filename: string) => {
+    if (!token || !isAdmin) return;
+
     // Confirmação simples para evitar exclusão acidental
     if (
       !window.confirm(`Tem certeza que deseja excluir o arquivo "${filename}"?`)
@@ -78,7 +83,6 @@ export function BaseConhecimentoPage() {
     }
 
     try {
-      const token = localStorage.getItem("token") || "";
       await api.deleteBaseConhecimento(token, filename);
 
       // Recarrega a tela para o card sumir
@@ -86,6 +90,20 @@ export function BaseConhecimentoPage() {
     } catch (error) {
       console.error("Erro ao excluir:", error);
       alert("Ocorreu um erro ao excluir o arquivo.");
+    }
+  };
+
+  const handleOpenContent = async (filename: string) => {
+    if (!token) return;
+
+    try {
+      const blob = await api.downloadBaseConhecimento(token, filename);
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      console.error("Erro ao abrir conteudo:", error);
+      alert("Ocorreu um erro ao abrir o arquivo.");
     }
   };
 
@@ -102,6 +120,8 @@ export function BaseConhecimentoPage() {
         </div>
 
         {/* Input de arquivo invisível (suporta pdf, docs, md, etc) */}
+        {isAdmin && (
+          <>
         <input
           type="file"
           ref={fileInputRef}
@@ -119,6 +139,8 @@ export function BaseConhecimentoPage() {
           <Plus className="size-4" />
           {isUploading ? "Enviando..." : "Novo artigo"}
         </button>
+          </>
+        )}
       </div>
 
       {isLoading && !isUploading ? (
@@ -155,15 +177,7 @@ export function BaseConhecimentoPage() {
                 {/* Botão Ver Conteúdo - Abre em nova aba */}
                 <button
                   type="button"
-                  onClick={() => {
-                    const baseUrl = (
-                      import.meta.env.VITE_API_URL || "http://localhost:3000"
-                    ).replace(/\/$/, "");
-                    window.open(
-                      `${baseUrl}/api/v1/conhecimento/download/${k.id}`,
-                      "_blank",
-                    );
-                  }}
+                  onClick={() => handleOpenContent(String(k.id))}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
                 >
                   <FileText className="size-3.5" />
@@ -172,13 +186,15 @@ export function BaseConhecimentoPage() {
 
                 {/* Botão Editar foi REMOVIDO */}
 
-                <button
-                  type="button"
-                  onClick={() => handleDelete(String(k.id))}
-                  className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors ml-auto"
-                >
-                  Excluir
-                </button>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(String(k.id))}
+                    className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors ml-auto"
+                  >
+                    Excluir
+                  </button>
+                )}
               </div>
             </article>
           ))}
