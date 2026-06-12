@@ -2,6 +2,8 @@ import { Router } from "express";
 import multer from "multer";
 import path from "path";
 import { getBaseConhecimento, uploadBaseConhecimento, deleteBaseConhecimento, downloadBaseConhecimento } from "../controllers/admin/conhecimento.controller"; 
+import { authenticateAdmin } from "../middleware/auth.middleware";
+import { requirePerfil } from "../middleware/perfil.middleware";
 
 const router = Router();
 
@@ -17,9 +19,11 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-router.get("/", getBaseConhecimento);
-router.post("/upload", upload.single("file"), uploadBaseConhecimento);
-router.get("/download/:filename", downloadBaseConhecimento);
-router.delete("/:filename", deleteBaseConhecimento);
+router.use(authenticateAdmin);
+
+router.get("/", requirePerfil("admin", "atendente"), getBaseConhecimento);
+router.post("/upload", requirePerfil("admin"), upload.single("file"), uploadBaseConhecimento);
+router.get("/download/:filename", requirePerfil("admin", "atendente"), downloadBaseConhecimento);
+router.delete("/:filename", requirePerfil("admin"), deleteBaseConhecimento);
 
 export default router;

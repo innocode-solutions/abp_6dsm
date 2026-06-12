@@ -260,7 +260,21 @@ describe(
       }
     });
 
-    it("GET /feriados com perfil atendente retorna 403 SEM_PERMISSAO", async () => {
+    it("GET /feriados com perfil atendente retorna 200 e lista feriados", async () => {
+      const Feriado = (await import("../../src/api/models/Feriado.model.js"))
+        .default as unknown as {
+        find: (...args: unknown[]) => Promise<unknown[]>;
+      };
+      const findSpy = vi.spyOn(Feriado, "find").mockResolvedValue([
+        {
+          _id: ID,
+          data: "2026-12-25",
+          nome: "Natal",
+          tipo: "nacional",
+          bloqueia_agendamento: true,
+          ativo: true,
+        },
+      ]);
       const { createApp } = await import("../../src/api/app.js");
       const app = createApp();
       const { port, close } = await listenOnce(app);
@@ -268,6 +282,34 @@ describe(
       try {
         const res = await fetch(`http://127.0.0.1:${port}${BASE}/feriados`, {
           headers: { Authorization: `Bearer ${adminToken("atendente")}` },
+        });
+        const body = (await res.json()) as { dados: Array<{ nome: string }> };
+
+        expect(res.status).toBe(200);
+        expect(body.dados[0].nome).toBe("Natal");
+        expect(findSpy).toHaveBeenCalledWith({ ativo: true });
+      } finally {
+        await close();
+      }
+    });
+
+    it("POST /feriados com perfil atendente retorna 403 SEM_PERMISSAO", async () => {
+      const { createApp } = await import("../../src/api/app.js");
+      const app = createApp();
+      const { port, close } = await listenOnce(app);
+
+      try {
+        const res = await fetch(`http://127.0.0.1:${port}${BASE}/feriados`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${adminToken("atendente")}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            data: "2026-12-25",
+            nome: "Natal",
+            tipo: "nacional",
+          }),
         });
         const body = (await res.json()) as { erro: { codigo: string } };
 

@@ -6,7 +6,7 @@ import Funcionario, {
   type FuncionarioPerfil,
 } from "../models/Funcionario.model.js";
 import { AppError } from "../types/common.types.js";
-import { verificarSenha } from "../utils/passwordHelper.js";
+import { hashSenha, verificarSenha } from "../utils/passwordHelper.js";
 
 interface FuncionarioAutenticado {
   id: string;
@@ -83,4 +83,29 @@ export async function autenticarFuncionario(email: string, senha: string): Promi
   );
 
   return { token, usuario };
+}
+
+export async function alterarSenhaFuncionario(
+  funcionarioId: string,
+  senhaAtual: string,
+  novaSenha: string,
+): Promise<void> {
+  const funcionario = await Funcionario.findById(funcionarioId).select("+senha_hash");
+
+  if (
+    !funcionario ||
+    !funcionario.ativo ||
+    typeof funcionario.senha_hash !== "string" ||
+    funcionario.senha_hash === ""
+  ) {
+    throw new AppError("NAO_AUTENTICADO", 401);
+  }
+
+  const senhaAtualValida = await verificarSenha(senhaAtual, funcionario.senha_hash);
+  if (!senhaAtualValida) {
+    throw new AppError("SENHA_ATUAL_INVALIDA", 401, "Senha atual invalida.");
+  }
+
+  funcionario.senha_hash = await hashSenha(novaSenha);
+  await funcionario.save();
 }

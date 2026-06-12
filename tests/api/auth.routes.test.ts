@@ -20,12 +20,14 @@ vi.mock("../../src/api/config/env.js", () => ({
 }));
 
 const funcionarioFindOneMock = vi.fn();
+const funcionarioFindByIdMock = vi.fn();
 const funcionarioCreateMock = vi.fn();
 
 vi.mock("../../src/api/models/Funcionario.model.js", () => ({
   FUNCIONARIO_PERFIS: ["admin", "atendente"],
   default: {
     findOne: (...args: unknown[]) => funcionarioFindOneMock(...args),
+    findById: (...args: unknown[]) => funcionarioFindByIdMock(...args),
     create: (...args: unknown[]) => funcionarioCreateMock(...args),
   },
 }));
@@ -63,6 +65,12 @@ function listenOnce(
 
 function mockFindOneResult(funcionario: unknown): void {
   funcionarioFindOneMock.mockReturnValue({
+    select: vi.fn().mockResolvedValue(funcionario),
+  });
+}
+
+function mockFindByIdResult(funcionario: unknown): void {
+  funcionarioFindByIdMock.mockReturnValue({
     select: vi.fn().mockResolvedValue(funcionario),
   });
 }
@@ -289,6 +297,84 @@ describe("rotas de auth do portal", () => {
 
       expect(resLegado.status).toBe(401);
       expect(bodyLegado.erro.codigo).toBe("NAO_AUTENTICADO");
+    } finally {
+      await close();
+    }
+  });
+
+  it("POST /api/v1/auth/alterar-senha valida senha atual e salva novo hash", async () => {
+    const { hashSenha, verificarSenha } = await import("../../src/api/utils/passwordHelper.js");
+    const funcionarioId = new mongoose.Types.ObjectId();
+    const documento = {
+      _id: funcionarioId,
+      ativo: true,
+      senha_hash: await hashSenha("senha-atual"),
+      save: vi.fn().mockResolvedValue(undefined),
+    };
+    mockFindByIdResult(documento);
+
+    const { createApp } = await import("../../src/api/app.js");
+    const app = createApp();
+    const { port, close } = await listenOnce(app);
+    const token = jwt.sign({ id: funcionarioId.toString(), perfil: "atendente" }, "jwt-test-secret");
+
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/api/v1/auth/alterar-senha`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          senhaAtual: "senha-atual",
+          novaSenha: "nova-senha",
+        }),
+      });
+      const body = (await res.json()) as { dados: { mensagem: string } };
+
+      expect(res.status).toBe(200);
+      expect(body.dados.mensagem).toBe("Senha alterada com sucesso.");
+      expect(funcionarioFindByIdMock).toHaveBeenCalledWith(funcionarioId.toString());
+      expect(documento.save).toHaveBeenCalled();
+      await expect(verificarSenha("nova-senha", documento.senha_hash)).resolves.toBe(true);
+    } finally {
+      await close();
+    }
+  });
+
+  it("POST /api/v1/auth/alterar-senha com senha atual invalida retorna 401", async () => {
+    const { hashSenha } = await import("../../src/api/utils/passwordHelper.js");
+    const funcionarioId = new mongoose.Types.ObjectId();
+    const documento = {
+      _id: funcionarioId,
+      ativo: true,
+      senha_hash: await hashSenha("senha-correta"),
+      save: vi.fn().mockResolvedValue(undefined),
+    };
+    mockFindByIdResult(documento);
+
+    const { createApp } = await import("../../src/api/app.js");
+    const app = createApp();
+    const { port, close } = await listenOnce(app);
+    const token = jwt.sign({ id: funcionarioId.toString(), perfil: "atendente" }, "jwt-test-secret");
+
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/api/v1/auth/alterar-senha`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          senhaAtual: "senha-errada",
+          novaSenha: "nova-senha",
+        }),
+      });
+      const body = (await res.json()) as { erro: { codigo: string } };
+
+      expect(res.status).toBe(401);
+      expect(body.erro.codigo).toBe("SENHA_ATUAL_INVALIDA");
+      expect(documento.save).not.toHaveBeenCalled();
     } finally {
       await close();
     }

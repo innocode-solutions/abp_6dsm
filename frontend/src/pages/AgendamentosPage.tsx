@@ -85,8 +85,9 @@ function maskCPF(cpf: string): string {
 }
 
 export function AgendamentosPage() {
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   const { setHeaderExtra, setHeaderRefresh } = useMainLayoutOutlet()
+  const isAdmin = user?.perfil === 'admin'
   const novoDataInputRef = useRef<HTMLInputElement | null>(null)
   const [month, setMonth] = useState(initialMonth)
   const [selected, setSelected] = useState(initialSelected)
@@ -207,7 +208,7 @@ export function AgendamentosPage() {
 
   async function handleSubmitFeriado(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!token) return
+    if (!token || !isAdmin) return
     if (!feriadoForm.data || !feriadoForm.nome.trim()) {
       setFeriadoError('Preencha data e nome do feriado.')
       return
@@ -321,17 +322,19 @@ export function AgendamentosPage() {
   useEffect(() => {
     setHeaderExtra(
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 rounded-xl border border-[#2563EB] bg-white px-3 py-2 text-sm font-semibold text-[#2563EB] shadow-sm hover:bg-blue-50"
-          onClick={() => {
-            setFeriadoError(null)
-            setShowFeriadoModal(true)
-          }}
-        >
-          <Plus className="size-4" aria-hidden />
-          Adicionar Feriado
-        </button>
+        {isAdmin && (
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 rounded-xl border border-[#2563EB] bg-white px-3 py-2 text-sm font-semibold text-[#2563EB] shadow-sm hover:bg-blue-50"
+            onClick={() => {
+              setFeriadoError(null)
+              setShowFeriadoModal(true)
+            }}
+          >
+            <Plus className="size-4" aria-hidden />
+            Adicionar Feriado
+          </button>
+        )}
         <button
           type="button"
           className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600"
@@ -358,11 +361,11 @@ export function AgendamentosPage() {
       </div>,
     )
     return () => setHeaderExtra(null)
-  }, [setHeaderExtra])
+  }, [isAdmin, setHeaderExtra])
 
   useEffect(() => {
     loadAgenda(reloadKey > 0)
-  }, [token, reloadKey])
+  }, [token, reloadKey, isAdmin])
 
   useEffect(() => {
     if (!token) {
@@ -494,7 +497,7 @@ export function AgendamentosPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-6 pb-4">
-      {showFeriadoModal && (
+      {isAdmin && showFeriadoModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
           onClick={(e) => {

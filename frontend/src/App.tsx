@@ -45,7 +45,9 @@ export default function App() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/conversas" element={<ConversasPage />} />
               <Route path="/agendamentos" element={<AgendamentosPage />} />
-              <Route path="/usuarios" element={<UsuariosPage />} />
+              <Route element={<ProtectedRoute allowedProfiles={['admin']} />}>
+                <Route path="/usuarios" element={<UsuariosPage />} />
+              </Route>
               <Route path="/base-de-conhecimento" element={<BaseConhecimentoPage />} />
               <Route path="/configuracoes" element={<ConfiguracoesPage />} />
             </Route>

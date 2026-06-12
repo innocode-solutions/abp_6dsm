@@ -29,6 +29,8 @@ export function Sidebar() {
 
   const linkBase =
     'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-blue-100/85 transition hover:bg-white/5 hover:text-white'
+  const visibleNav =
+    user?.perfil === 'admin' ? nav : nav.filter((item) => item.to !== '/usuarios')
 
   return (
     <aside className="flex h-full w-[250px] shrink-0 flex-col bg-gradient-to-b from-[#0a1628] to-[#0d1f4c] text-white shadow-xl">
@@ -44,7 +46,7 @@ export function Sidebar() {
         </div>
 
         <nav className="flex flex-col gap-1">
-          {nav.map(({ to, label, icon: Icon }) => (
+          {visibleNav.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
