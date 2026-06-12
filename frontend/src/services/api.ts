@@ -259,4 +259,23 @@ export const api = {
       token
     )
   },
+
+  async getMeuPerfil(token: string) {
+    return request<{ dados: { nome: string; email: string; perfil: string } }>(
+      '/api/v1/auth/me', 
+      {}, 
+      token
+    )
+  },
+
+  async atualizarMeuPerfil(token: string, dados: any) {
+    return request<{ mensagem: string }>(
+      '/api/v1/auth/me',
+      {
+        method: 'PUT', // ou PATCH, dependendo da sua API
+        body: JSON.stringify(dados),
+      },
+      token
+    )
+  },
 }
