@@ -51,6 +51,13 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
 
 
   describe("First Message - Menu Display", () => {
+    it("deve informar uso de IA na primeira resposta da conversa", async () => {
+      const response = await processor.processIncomingMessage("user-ai-notice-1", "oi");
+
+      expect(response).toContain("inteligência artificial");
+      expect(response).toContain("não substituem o atendimento oficial do PROCON");
+    });
+
     it("deve mostrar o menu quando primeira mensagem e saudacao ('oi')", async () => {
       const response = await processor.processIncomingMessage("user1", "oi");
 
@@ -83,6 +90,8 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
       const response = await processor.processIncomingMessage("user2", "xyz123");
 
       expect(response).toContain("Não entendi sua mensagem");
+      expect(response).toContain("inteligência artificial");
+      expect(response).toContain("atendimento oficial do PROCON");
       expect(response).toContain("menu");
     });
 
@@ -104,6 +113,16 @@ describe("MessageProcessorService - Menu and Numeric Selection", () => {
       expect(response).toContain("Você reconhece ou contratou essa cobrança?");
       expect(response).toContain("1.");
       expect(response).toContain("2.");
+    });
+
+    it("nao deve repetir aviso de IA nas interacoes seguintes da mesma conversa", async () => {
+      const user = "user-ai-notice-2";
+
+      const firstResponse = await processor.processIncomingMessage(user, "1");
+      const secondResponse = await processor.processIncomingMessage(user, "1");
+
+      expect(firstResponse).toContain("inteligência artificial");
+      expect(secondResponse).not.toContain("inteligência artificial");
     });
 
     it("deve iniciar fluxo correto para cada número (1-5)", async () => {
