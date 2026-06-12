@@ -13,7 +13,6 @@ const adminConfig = Router();
 
 adminConfig.use(adminLimiter);
 adminConfig.use(authenticateAdmin);
-adminConfig.use(requirePerfil("admin"));
 
 function crudRouter(handlers: {
   listar: typeof servicoController.listar;
@@ -31,13 +30,24 @@ function crudRouter(handlers: {
   return resource;
 }
 
-adminConfig.use("/servicos", crudRouter(servicoController));
-adminConfig.use("/funcionarios", crudRouter(funcionarioController));
+function feriadoRouter(): Router {
+  const resource = Router();
+  resource.get("/", requirePerfil("admin", "atendente"), feriadoController.listar);
+  resource.post("/", requirePerfil("admin"), feriadoController.criar);
+  resource.get("/:id", requirePerfil("admin"), feriadoController.buscarPorId);
+  resource.patch("/:id", requirePerfil("admin"), feriadoController.atualizar);
+  resource.delete("/:id", requirePerfil("admin"), feriadoController.remover);
+  return resource;
+}
+
+adminConfig.use("/servicos", requirePerfil("admin"), crudRouter(servicoController));
+adminConfig.use("/funcionarios", requirePerfil("admin"), crudRouter(funcionarioController));
 adminConfig.use(
   "/regras-disponibilidade",
+  requirePerfil("admin"),
   crudRouter(regraDisponibilidadeController),
 );
-adminConfig.use("/feriados", crudRouter(feriadoController));
+adminConfig.use("/feriados", feriadoRouter());
 
 router.use("/admin", adminConfig);
 

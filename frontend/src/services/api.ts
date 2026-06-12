@@ -85,6 +85,13 @@ export const api = {
     })
   },
 
+  async alterarSenha(token: string, senhaAtual: string, novaSenha: string) {
+    return request<{ dados: { mensagem: string } }>('/api/v1/auth/alterar-senha', {
+      method: 'POST',
+      body: JSON.stringify({ senhaAtual, novaSenha }),
+    }, token)
+  },
+
   async getAgenda(token: string, data?: string) {
     const query = data ? `?data=${encodeURIComponent(data)}` : ''
     return request<{ dados: any[] }>(`/api/v1/agendamentos/admin/agenda${query}`, {}, token)
@@ -197,6 +204,23 @@ export const api = {
       }, 
       token
     )
+  },
+
+  async downloadBaseConhecimento(token: string, filename: string) {
+    const response = await fetch(
+      `${API_BASE_URL}/api/v1/conhecimento/download/${encodeURIComponent(filename)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    )
+
+    if (!response.ok) {
+      throw new Error(`Erro HTTP ${response.status}`)
+    }
+
+    return response.blob()
   },
 
   async createFeriado(token: string, payload: CreateFeriadoPayload) {
