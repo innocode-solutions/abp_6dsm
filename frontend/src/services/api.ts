@@ -32,6 +32,12 @@ export type HorarioDisponivel = {
   status: string
 }
 
+export type TopicKpiItem = {
+  flowId: string
+  name: string
+  value: number
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -121,6 +127,10 @@ export const api = {
   async getKpiDashboard(token: string, userIds: string[]) {
     const query = userIds.length > 0 ? `?users=${encodeURIComponent(userIds.join(','))}` : ''
     return request<any>(`/api/kpi/dashboard${query}`, {}, token)
+  },
+
+  async getAssuntosDashboard(token: string) {
+    return request<{ dados: TopicKpiItem[] }>('/api/kpi/assuntos', {}, token)
   },
 
   async criarFuncionario(

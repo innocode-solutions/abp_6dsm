@@ -2,6 +2,7 @@ import { Router, type NextFunction, type Request, type Response } from "express"
 import jwt from "jsonwebtoken";
 import { ZodError } from "zod";
 import { GetDashboardUseCase } from "../../application/use-cases/GetDashboardUseCase";
+import { GetTopicKpiUseCase } from "../../application/use-cases/GetTopicKpiUseCase";
 import { IHistoryRepository } from "../../messages/history";
 import { parseUserIds } from "../validation/dashboard.schema";
 
@@ -77,6 +78,26 @@ export function createKpiRouter(historyRepository: IHistoryRepository): Router {
           return;
         }
 
+        next(err);
+      }
+    }
+  );
+
+  /**
+   * GET /api/kpi/assuntos
+   * Retorna os principais temas classificados pelo chatbot.
+   * Requer Authorization: Bearer <token>
+   */
+  router.get(
+    "/assuntos",
+    authMiddleware,
+    async (_req: Request, res: Response, next: NextFunction) => {
+      try {
+        const useCase = new GetTopicKpiUseCase();
+        const result = await useCase.execute();
+
+        res.json({ dados: result });
+      } catch (err) {
         next(err);
       }
     }

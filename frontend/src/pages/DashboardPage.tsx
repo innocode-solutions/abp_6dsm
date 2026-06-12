@@ -24,7 +24,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useMainLayoutOutlet } from '../hooks/useMainLayoutOutlet'
-import { api } from '../services/api'
+import { api, type TopicKpiItem } from '../services/api'
 
 type MetricId = 'conversas' | 'usuarios' | 'mensagens' | 'agendamentos' | 'atualizacao'
 
@@ -141,22 +141,6 @@ function normalizeStatus(status: unknown): string {
   return isNonEmptyString(status) ? status.trim().toLowerCase() : ''
 }
 
-function getAppointmentTopic(appointment: ApiAppointment): string {
-  if (
-    appointment.servico_id &&
-    typeof appointment.servico_id === 'object' &&
-    isNonEmptyString(appointment.servico_id.nome)
-  ) {
-    return appointment.servico_id.nome.trim()
-  }
-
-  if (isNonEmptyString(appointment.assunto)) {
-    return appointment.assunto.trim()
-  }
-
-  return 'Geral'
-}
-
 function getConversationId(conversation: ApiConversation): string | null {
   if (isNonEmptyString(conversation.id)) return conversation.id.trim()
   if (isNonEmptyString(conversation.identificador)) return conversation.identificador.trim()
@@ -260,6 +244,7 @@ export function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const [appointments, setAppointments] = useState<ApiAppointment[]>([])
   const [conversations, setConversations] = useState<ApiConversation[]>([])
+  const [topics, setTopics] = useState<TopicKpiItem[]>([])
   const [kpiData, setKpiData] = useState<DashboardKpi>(() => createEmptyKpi())
   const [refreshRequest, setRefreshRequest] = useState(0)
   const [referenceDate, setReferenceDate] = useState(() => new Date())
@@ -290,13 +275,15 @@ export function DashboardPage() {
         }
         setError(null)
 
-        const [agendaRes, conversasRes] = await Promise.all([
+        const [agendaRes, conversasRes, assuntosRes] = await Promise.all([
           api.getAgenda(validToken),
           api.getConversas(validToken),
+          api.getAssuntosDashboard(validToken),
         ])
 
         const agenda = Array.isArray(agendaRes.dados) ? agendaRes.dados : []
         const conversas = Array.isArray(conversasRes.dados) ? conversasRes.dados : []
+        const assuntos = Array.isArray(assuntosRes.dados) ? assuntosRes.dados : []
         const conversationIds = uniqueValues(conversas.map(getConversationId))
         const kpiBatches = chunkKpiUserIds(conversationIds)
 
@@ -308,6 +295,7 @@ export function DashboardPage() {
 
         setAppointments(agenda)
         setConversations(conversas)
+        setTopics(assuntos)
         setKpiData(mergeKpis(kpiResults))
         setReferenceDate(new Date())
       } catch (err) {
@@ -398,16 +386,13 @@ export function DashboardPage() {
   }, [appointments, last7Days])
 
   const assuntosDonut = useMemo(() => {
-    const counts = appointments.reduce<Record<string, number>>((acc, appointment) => {
-      const topic = getAppointmentTopic(appointment)
-      acc[topic] = (acc[topic] ?? 0) + 1
-      return acc
-    }, {})
-
-    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1])
+    const entries = topics
+      .map((topic) => [topic.name, Number(topic.value) || 0] as [string, number])
+      .filter(([, count]) => count > 0)
+      .sort((a, b) => b[1] - a[1])
 
     if (entries.length === 0) {
-      return [{ name: 'Sem agendamentos', value: 100, color: '#9CA3AF' }]
+      return [{ name: 'Sem dados', value: 100, color: '#9CA3AF' }]
     }
 
     const visibleEntries = entries.slice(0, 4)
@@ -421,7 +406,7 @@ export function DashboardPage() {
       value: Math.round((count / total) * 100),
       color: TOPIC_COLORS[index % TOPIC_COLORS.length],
     }))
-  }, [appointments])
+  }, [topics])
 
   const metrics = useMemo<DashboardMetric[]>(() => {
     const now = new Date()
