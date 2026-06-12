@@ -21,6 +21,10 @@ import {
 const MENU_REMINDER =
   "\n\n_Digite *menu* a qualquer momento para voltar ao menu principal._";
 
+const AI_USAGE_NOTICE =
+  "Aviso: este atendimento utiliza inteligência artificial para auxiliar nas respostas. " +
+  "As orientações são informativas e não substituem o atendimento oficial do PROCON.";
+
 /** Termos que indicam pedido de ajuda/navegação (sem consulta jurídica). */
 const HELP_TERMS = new Set([
   "ajuda",
@@ -71,6 +75,7 @@ export class MessageProcessorService implements IMessageProcessor {
       from,
       body
     );
+    const responseText = await this.addAiUsageNoticeIfNeeded(from, text);
 
     await this.maybePersistExtraction(
       from,
@@ -81,7 +86,7 @@ export class MessageProcessorService implements IMessageProcessor {
       context?.sessionId
     );
 
-    return text;
+    return responseText;
   }
 
   private async dispatchMessage(from: string, body: string): Promise<DispatchOutcome> {
@@ -219,9 +224,11 @@ export class MessageProcessorService implements IMessageProcessor {
     const knowledgeAnswer = await this.knowledgeService?.findAnswer(knowledgeQuery);
 
     if (knowledgeAnswer) {
+      const currentContext = await this.conversationContextStore.get(from);
       await this.conversationContextStore.save({
         userId: from,
         lastUserMessage: body,
+        aiNoticeShown: currentContext?.aiNoticeShown,
         updatedAt: new Date()
       });
 
@@ -262,6 +269,26 @@ export class MessageProcessorService implements IMessageProcessor {
       nlpClassification,
       flowId
     });
+  }
+
+  private async addAiUsageNoticeIfNeeded(
+    userId: string,
+    text: string
+  ): Promise<string> {
+    const context = await this.conversationContextStore.get(userId);
+
+    if (context?.aiNoticeShown) {
+      return text;
+    }
+
+    await this.conversationContextStore.save({
+      userId,
+      lastUserMessage: context?.lastUserMessage ?? "",
+      aiNoticeShown: true,
+      updatedAt: new Date()
+    });
+
+    return `${AI_USAGE_NOTICE}\n\n${text}`;
   }
 
   private isHelpRequest(body: string): boolean {
