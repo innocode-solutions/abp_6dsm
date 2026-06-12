@@ -10,9 +10,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { ConversasPage } from './pages/ConversasPage'
 import { AgendamentosPage } from './pages/AgendamentosPage'
 import { UsuariosPage } from './pages/UsuariosPage'
-import { MensagensNaoEntendidasPage } from './pages/MensagensNaoEntendidasPage'
 import { BaseConhecimentoPage } from './pages/BaseConhecimentoPage'
-import { RelatoriosPage } from './pages/RelatoriosPage'
 import { ConfiguracoesPage } from './pages/ConfiguracoesPage'
 
 function LoginRoute() {
@@ -48,12 +46,7 @@ export default function App() {
               <Route path="/conversas" element={<ConversasPage />} />
               <Route path="/agendamentos" element={<AgendamentosPage />} />
               <Route path="/usuarios" element={<UsuariosPage />} />
-              <Route
-                path="/mensagens-nao-entendidas"
-                element={<MensagensNaoEntendidasPage />}
-              />
               <Route path="/base-de-conhecimento" element={<BaseConhecimentoPage />} />
-              <Route path="/relatorios" element={<RelatoriosPage />} />
               <Route path="/configuracoes" element={<ConfiguracoesPage />} />
             </Route>
           </Route>

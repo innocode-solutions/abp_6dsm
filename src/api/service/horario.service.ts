@@ -1,7 +1,8 @@
-import { addDays, addMinutes, getDay, startOfDay } from "date-fns";
+import { addDays, addHours, addMinutes, getDay, startOfDay } from "date-fns";
 import { formatInTimeZone, fromZonedTime, toZonedTime } from "date-fns-tz";
 import mongoose, { type Types } from "mongoose";
 
+import { HORAS_MINIMAS_ANTECEDENCIA } from "../constants/agendamento.constants.js";
 import AgendamentoModel from "../models/Agendamento.model.js";
 import BloqueioModel from "../models/Bloqueio.model.js";
 import FeriadoModel from "../models/Feriado.model.js";
@@ -24,6 +25,10 @@ const LIMITE_PADRAO = 5;
 function inicioDoDiaBrasilia(ref = new Date()): Date {
   const zoned = toZonedTime(ref, TIMEZONE_BR);
   return fromZonedTime(startOfDay(zoned), TIMEZONE_BR);
+}
+
+function inicioMinimoAgendamento(ref = new Date()): Date {
+  return addHours(ref, HORAS_MINIMAS_ANTECEDENCIA);
 }
 
 function fimDoDiaBrasilia(date: Date): Date {
@@ -52,7 +57,7 @@ export async function getHorariosDisponiveis(
     return [];
   }
 
-  const inicioIntervalo = de ?? inicioDoDiaBrasilia();
+  const inicioIntervalo = de ?? inicioMinimoAgendamento();
   const fimBase = ate ?? addDays(inicioIntervalo, DIAS_PADRAO);
   const fimIntervalo = fimDoDiaBrasilia(fimBase);
   const maxResultados = limite ?? LIMITE_PADRAO;

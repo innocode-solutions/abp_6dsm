@@ -217,6 +217,28 @@ npm.cmd run api:seed-admin
 
 Depois use `POST /api/v1/auth/login` com o email e senha criados.
 
+### 8.2 Gerar Horarios Futuros para Agendamento
+
+O chatbot lista os proximos horarios disponiveis a partir da antecedencia minima configurada na API. Para que ele consiga oferecer horarios de amanha ou dos proximos dias, mantenha horarios futuros gerados no banco:
+
+```bash
+npm run api:seed-horarios
+```
+
+Por padrao, o script gera uma janela de 30 dias a partir da data atual. Para ajustar a janela:
+
+```bash
+SEED_HORARIOS_DIAS=45 npm run api:seed-horarios
+SEED_HORARIOS_DE=2026-06-11 SEED_HORARIOS_ATE=2026-07-10 npm run api:seed-horarios
+```
+
+No PowerShell:
+
+```powershell
+$env:SEED_HORARIOS_DIAS="45"
+npm.cmd run api:seed-horarios
+```
+
 ## 9. Executar o Frontend Administrativo
 
 O frontend fica em `frontend/` e apresenta o painel administrativo integrado ao backend.

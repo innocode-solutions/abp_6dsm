@@ -1,7 +1,5 @@
 import { NavLink } from 'react-router-dom'
 import {
-  AlertCircle,
-  BarChart2,
   BookOpen,
   Calendar,
   LayoutDashboard,
@@ -18,19 +16,16 @@ const nav = [
   { to: '/conversas', label: 'Conversas', icon: MessageSquare },
   { to: '/agendamentos', label: 'Agendamentos', icon: Calendar },
   { to: '/usuarios', label: 'Usuários', icon: Users },
-  {
-    to: '/mensagens-nao-entendidas',
-    label: 'Mensagens não entendidas',
-    icon: AlertCircle,
-  },
   { to: '/base-de-conhecimento', label: 'Base de Conhecimento', icon: BookOpen },
-  { to: '/relatorios', label: 'Relatórios', icon: BarChart2 },
   { to: '/configuracoes', label: 'Configurações', icon: Settings },
 ]
 
 export function Sidebar() {
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
   const { setSidebarOpen } = useLayoutShell()
+
+  const userName = user?.nome?.trim() || 'Usuario'
+  const userRole = user?.perfil === 'admin' ? 'Administrador' : 'Atendente'
 
   const linkBase =
     'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-blue-100/85 transition hover:bg-white/5 hover:text-white'
@@ -95,8 +90,8 @@ export function Sidebar() {
               <Users className="size-4 text-blue-100" aria-hidden />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold">Nome do Usuário</p>
-              <p className="truncate text-xs text-blue-100/65">Administrador</p>
+              <p className="truncate text-sm font-semibold">{userName}</p>
+              <p className="truncate text-xs text-blue-100/65">{userRole}</p>
             </div>
           </div>
           <button
