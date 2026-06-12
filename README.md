@@ -34,7 +34,7 @@ A solução combina fluxos decisórios baseados nas orientações do PROCON com 
 
 <p>
 
-O sistema utiliza **Node.js e TypeScript no backend**, integração com **WhatsApp via whatsapp-web.js**, armazenamento de dados em banco relacional e infraestrutura em **computação em nuvem**, permitindo registrar interações, auditar respostas e gerar orientações claras aos consumidores.
+O sistema utiliza **Node.js e TypeScript no backend**, integração com **WhatsApp via whatsapp-web.js**, armazenamento de dados em banco não relacional e infraestrutura em **computação em nuvem**, permitindo registrar interações, auditar respostas e gerar orientações claras aos consumidores.
 
 </p>
 
@@ -388,6 +388,7 @@ Implementar a comunicação via WhatsApp e os primeiros fluxos de atendimento do
 - A integração com WhatsApp via whatsapp-web.js foi entregue dentro do prazo.
 - A comunicação entre os membros da equipe foi efetiva durante toda a sprint.
 - O motor de fluxo decisório atendeu os casos de uso previstos (cobrança indevida, empréstimo não reconhecido, arrependimento e cancelamento de plano).
+  
 **⚠️ O que pode melhorar**
 - A estimativa de story points precisa ser revisada antes do início de cada sprint para garantir coerência com o gráfico de burndown.
 - A documentação de setup do projeto (como subir localmente) precisa ser iniciada em paralelo ao desenvolvimento, não apenas ao final.
@@ -437,8 +438,9 @@ Implementar base de conhecimento, interpretação de linguagem e persistência d
 - A estruturação da base FAQ do PROCON foi concluída e servirá como base sólida para as respostas do bot.
 - A pipeline de RAG (ingestão do CDC → chunking → embeddings → busca semântica) foi implementada com sucesso.
 - A equipe conseguiu lidar com tecnologias novas (embeddings, busca vetorial) dentro do prazo da sprint.
+- 
 **⚠️ O que pode melhorar**
-- A comunicação decaiu em relação a sprint anterior.
+- A comunicação da equipe caiu em relação à sprint anterior.
 
 </details>
 
@@ -468,6 +470,46 @@ Realizar deploy em nuvem, implementar observabilidade, governança, documentaç�
 | US42 | RNF02 | Ajustar deploy Railway para bot/API separados e trust proxy | 3 |
 | US43 | RNF02 | Deploy do frontend na Vercel | 1 |
 | US44 | RF03, RF04 | Corrigir início do agendamento para aceitar "Sim" e "Não" | 3 |
+
+<br>
+
+<div align="center">
+  <p><i>Gráfico de Burndown do Sprint 3</i></p>
+</div>
+
+```mermaid
+xychart-beta
+    title "Sprint 3 - Burndown"
+    x-axis ["19/05", "26/05", "02/06", "09/06", "15/06"]
+    y-axis "Pontos restantes" 0 --> 50
+    line [50, 38, 25, 13, 0]
+    line [50, 45, 39, 25, 0]
+```
+
+A primeira linha representa o ritmo ideal e a segunda linha representa o andamento real da sprint, que concentrou maior volume de entregas na reta final.
+
+| Data | Ideal | Real |
+|------|:-----:|:----:|
+| 19/05 | 50 | 50 |
+| 26/05 | 38 | 45 |
+| 02/06 | 25 | 39 |
+| 09/06 | 13 | 25 |
+| 15/06 | 0 | 0 |
+
+---
+
+**Retrospectiva — Sprint 3**
+
+**✅ O que foi bem**
+- O fluxo de agendamento evoluiu de ponta a ponta, incluindo criação do fluxo, listagem de horários, persistência, confirmação, cancelamento e reagendamento.
+- O frontend passou a consumir dados reais da API, deixando o painel administrativo mais próximo do uso final.
+- A separação entre bot e API melhorou a organização do deploy e permitiu configurar melhor os ambientes Railway e Vercel.
+- As correções de contexto da LLM e de entendimento das mensagens iniciais deixaram a conversa mais natural e reduziram respostas de fallback indevidas.
+
+**⚠️ O que pode melhorar**
+- Integrar bot, API e frontend mais cedo na sprint para reduzir ajustes concentrados no final.
+- Atualizar documentação, variáveis de ambiente e instruções de deploy junto com as mudanças de código.
+- Definir dados mínimos de teste e seeds antes da implementação de funcionalidades que dependem do banco.
 
 </details>
 <span id="equipe"></span>
@@ -585,7 +627,7 @@ flowchart LR
 
     RAG --> FAQ[Base FAQ PROCON]
     RAG --> CDC[Base CDC]
-    FAQ --> DB[(PostgreSQL / pgvector)]
+    FAQ --> DB[(NoSQL / MongoDB)]
     CDC --> DB
 
     SES --> DB
