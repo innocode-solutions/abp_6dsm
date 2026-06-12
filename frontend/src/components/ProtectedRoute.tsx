@@ -1,4 +1,4 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom'
+import { Navigate, Outlet, useLocation, useOutletContext } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import type { UserInfo } from '../context/auth-context'
 
@@ -9,6 +9,7 @@ type ProtectedRouteProps = {
 export function ProtectedRoute({ allowedProfiles }: ProtectedRouteProps) {
   const { isAuthenticated, user } = useAuth()
   const location = useLocation()
+  const outletContext = useOutletContext<unknown>()
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />
@@ -18,5 +19,5 @@ export function ProtectedRoute({ allowedProfiles }: ProtectedRouteProps) {
     return <Navigate to="/dashboard" replace />
   }
 
-  return <Outlet />
+  return <Outlet context={outletContext} />
 }
