@@ -1,6 +1,7 @@
 export interface ConversationContext {
   readonly userId: string;
   readonly lastUserMessage: string;
+  readonly aiNoticeShown?: boolean;
   readonly updatedAt: Date;
 }
 
